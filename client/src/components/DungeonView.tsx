@@ -66,14 +66,15 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
     if (floorTex) {
       const texW = floorTex.width;
       const texH = floorTex.height;
+      const texScale = 64; // Larger = bigger tiles on floor
       
-      // Floor casting - draw horizontal scanlines with perspective
-      for (let y = Math.floor(h / 2) + 1; y < h; y += 2) { // Step by 2 for performance
+      // Floor casting - draw every scanline for maximum sharpness
+      for (let y = Math.floor(h / 2) + 1; y < h; y++) {
         // Current y position compared to horizon
         const p = y - h / 2;
-        const rowDistance = (h * 0.5) / p; // Distance from camera to this row
+        const rowDistance = (h * 0.5) / p;
         
-        // Calculate floor step
+        // Calculate floor step per pixel
         const floorStepX = rowDistance * (planeX * 2) / w;
         const floorStepY = rowDistance * (planeY * 2) / w;
         
@@ -81,27 +82,31 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
         let floorX = posX + rowDistance * (dirX - planeX);
         let floorY = posY + rowDistance * (dirY - planeY);
         
-        // Draw horizontal line with texture sampling
-        for (let x = 0; x < w; x += 4) { // Step by 4 for performance
-          // Get texture coordinates
-          const tx = Math.floor((floorX * texW) % texW);
-          const ty = Math.floor((floorY * texH) % texH);
+        // Draw each pixel for sharp texture
+        for (let x = 0; x < w; x += 2) {
+          // Get texture coordinates with larger tile size
+          const tx = Math.floor(Math.abs(floorX * texScale) % texW);
+          const ty = Math.floor(Math.abs(floorY * texScale) % texH);
           
-          // Draw textured pixel (4x2 block for performance)
+          // Sample 2x2 block from texture for slightly better quality
           ctx.drawImage(
             floorTex,
-            Math.abs(tx), Math.abs(ty), 1, 1,
-            x, y, 4, 2
+            tx, ty, 2, 2,
+            x, y, 2, 1
           );
           
-          floorX += floorStepX * 4;
-          floorY += floorStepY * 4;
+          floorX += floorStepX * 2;
+          floorY += floorStepY * 2;
         }
-        
-        // Apply distance fog for depth effect
-        const fog = Math.min(0.85, rowDistance / 8);
+      }
+      
+      // Apply subtle distance fog overlay
+      for (let y = Math.floor(h / 2) + 1; y < h; y += 4) {
+        const p = y - h / 2;
+        const rowDistance = (h * 0.5) / p;
+        const fog = Math.min(0.7, rowDistance / 10);
         ctx.fillStyle = `rgba(10, 8, 6, ${fog})`;
-        ctx.fillRect(0, y, w, 2);
+        ctx.fillRect(0, y, w, 4);
       }
     } else {
       // Fallback gradient floor
