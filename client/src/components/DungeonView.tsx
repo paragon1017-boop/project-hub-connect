@@ -54,43 +54,63 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Draw Floor & Ceiling (Gradient fallback if texture missing)
-    if (!texturesRef.current.floor) {
-      // Ceiling
-      const ceilingGradient = ctx.createLinearGradient(0, 0, 0, h / 2);
-      ceilingGradient.addColorStop(0, "#111");
-      ceilingGradient.addColorStop(1, "#000");
-      ctx.fillStyle = ceilingGradient;
-      ctx.fillRect(0, 0, w, h / 2);
+    // Draw Ceiling (dark stone)
+    const ceilingGradient = ctx.createLinearGradient(0, 0, 0, h / 2);
+    ceilingGradient.addColorStop(0, "#0a0806");
+    ceilingGradient.addColorStop(1, "#1a1510");
+    ctx.fillStyle = ceilingGradient;
+    ctx.fillRect(0, 0, w, h / 2);
 
-      // Floor
+    // Draw Floor with perspective floor casting (stone walkway effect)
+    const floorTex = texturesRef.current.floor;
+    if (floorTex) {
+      const texW = floorTex.width;
+      const texH = floorTex.height;
+      
+      // Floor casting - draw horizontal scanlines with perspective
+      for (let y = Math.floor(h / 2) + 1; y < h; y += 2) { // Step by 2 for performance
+        // Current y position compared to horizon
+        const p = y - h / 2;
+        const rowDistance = (h * 0.5) / p; // Distance from camera to this row
+        
+        // Calculate floor step
+        const floorStepX = rowDistance * (planeX * 2) / w;
+        const floorStepY = rowDistance * (planeY * 2) / w;
+        
+        // Starting floor position for leftmost column
+        let floorX = posX + rowDistance * (dirX - planeX);
+        let floorY = posY + rowDistance * (dirY - planeY);
+        
+        // Draw horizontal line with texture sampling
+        for (let x = 0; x < w; x += 4) { // Step by 4 for performance
+          // Get texture coordinates
+          const tx = Math.floor((floorX * texW) % texW);
+          const ty = Math.floor((floorY * texH) % texH);
+          
+          // Draw textured pixel (4x2 block for performance)
+          ctx.drawImage(
+            floorTex,
+            Math.abs(tx), Math.abs(ty), 1, 1,
+            x, y, 4, 2
+          );
+          
+          floorX += floorStepX * 4;
+          floorY += floorStepY * 4;
+        }
+        
+        // Apply distance fog for depth effect
+        const fog = Math.min(0.85, rowDistance / 8);
+        ctx.fillStyle = `rgba(10, 8, 6, ${fog})`;
+        ctx.fillRect(0, y, w, 2);
+      }
+    } else {
+      // Fallback gradient floor
       const floorGradient = ctx.createLinearGradient(0, h / 2, 0, h);
-      floorGradient.addColorStop(0, "#1a1a1a");
-      floorGradient.addColorStop(1, "#0a0a0a");
+      floorGradient.addColorStop(0, "#2a2520");
+      floorGradient.addColorStop(0.5, "#3d3528");
+      floorGradient.addColorStop(1, "#1a1510");
       ctx.fillStyle = floorGradient;
       ctx.fillRect(0, h / 2, w, h / 2);
-    } else {
-        // Simple floor fill for now - fully textured floor casting is expensive in JS without optimization
-        // We'll stick to a solid color gradient for performance and "retro" feel, 
-        // OR simply draw the image stretched if user really wants texture, 
-        // but raycasting floor is tricky.
-        // Let's stick to the gradient for retro vibe + performance, it looks cleaner.
-        // If specific texture requested, we can pattern fill:
-        const ptrn = ctx.createPattern(texturesRef.current.floor, 'repeat');
-        if (ptrn) {
-           ctx.fillStyle = "#000"; 
-           ctx.fillRect(0,0,w,h/2); // Ceiling black
-           ctx.fillStyle = ptrn;
-           // Perspective transform is hard in 2D canvas, so we just fill bottom half
-           // To make it look "ok", we add a dark gradient overlay
-           ctx.fillRect(0, h/2, w, h/2);
-           
-           const fade = ctx.createLinearGradient(0, h/2, 0, h);
-           fade.addColorStop(0, "rgba(0,0,0,0.9)");
-           fade.addColorStop(1, "rgba(0,0,0,0.2)");
-           ctx.fillStyle = fade;
-           ctx.fillRect(0, h/2, w, h/2);
-        }
     }
 
     // Raycasting Loop
