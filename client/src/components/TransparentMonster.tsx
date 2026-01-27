@@ -63,12 +63,12 @@ export function TransparentMonster({ src, alt, className }: TransparentMonsterPr
         // Magenta chroma key (#FF00FF) - very common for transparency
         const isMagenta = r > 200 && g < 80 && b > 200;
         
-        // Purple detection (common AI generation background)
-        const isPurpleBackground = r > 80 && r < 180 && b > 80 && b < 180 && 
-                                    Math.abs(r - b) < 40 && g < Math.max(r, b) - 5;
+        // Purple detection (common AI generation background) - stricter to not remove purple slimes
+        const isPurpleBackground = r > 100 && r < 160 && b > 100 && b < 160 && 
+                                    Math.abs(r - b) < 20 && g < 80 && g < Math.max(r, b) * 0.6;
         
-        // Green screen detection
-        const isGreenBackground = g > 140 && g > r * 1.05 && g > b * 1.2;
+        // Green screen detection - but NOT slime greens (slimes tend to be teal/lime, not pure green)
+        const isGreenBackground = g > 180 && g > r * 1.5 && g > b * 1.5 && r < 100 && b < 100;
         
         // White/light gray backgrounds
         const brightness = (r + g + b) / 3;
@@ -79,8 +79,8 @@ export function TransparentMonster({ src, alt, className }: TransparentMonsterPr
         // Very dark backgrounds
         const isDarkBackground = brightness < 25 && isGrayish;
         
-        // Blue/cyan backgrounds
-        const isBlueBackground = b > 140 && b > r * 1.2 && b > g * 1.1;
+        // Blue/cyan backgrounds - stricter to not remove blue slimes/oozes
+        const isBlueBackground = b > 180 && b > r * 1.8 && b > g * 1.5 && r < 80 && g < 120;
         
         // Beige/tan AI backgrounds
         const isBeigeBackground = r > 180 && g > 160 && b > 140 && 
