@@ -756,87 +756,99 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
         ctx.fillStyle = glowGrad;
         ctx.fillRect(lightX - 40, lightY - lanternH - 30, 80, 70);
       } else {
-        // Wall candle on wooden shelf
-        const candleH = 8 + decorRandom() * 4;
-        const shelfY = lightY + 2;
+        // Wall torch on iron bracket (positioned high near ceiling)
+        const torchY = h / 2 - 5 - decorRandom() * 10; // Very high, near ceiling
+        const torchH = 14 + decorRandom() * 4;
         
-        // Wooden shelf bracket (triangle support)
-        ctx.fillStyle = '#4a3825';
+        // Iron wall bracket
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(lightX - 2, torchY + torchH - 4, 4, 6); // Wall mount plate
+        
+        // Iron ring holder
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(lightX - 10, shelfY + 3);
-        ctx.lineTo(lightX - 10, shelfY - 8);
-        ctx.lineTo(lightX - 2, shelfY + 3);
+        ctx.arc(lightX, torchY + torchH - 6, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Torch handle (wooden)
+        ctx.fillStyle = '#4a3520';
+        ctx.fillRect(lightX - 2, torchY, 4, torchH);
+        
+        // Handle wood grain
+        ctx.strokeStyle = 'rgba(30, 20, 10, 0.4)';
+        ctx.lineWidth = 1;
+        for (let g = torchY + 3; g < torchY + torchH - 2; g += 4) {
+          ctx.beginPath();
+          ctx.moveTo(lightX - 1, g);
+          ctx.lineTo(lightX + 1, g);
+          ctx.stroke();
+        }
+        
+        // Handle wrapping (cloth/rope)
+        ctx.fillStyle = '#5a4a35';
+        ctx.fillRect(lightX - 2, torchY + torchH - 8, 4, 3);
+        ctx.fillRect(lightX - 2, torchY + torchH - 12, 4, 2);
+        
+        // Torch head (burning material)
+        ctx.fillStyle = '#3a2a1a';
+        ctx.beginPath();
+        ctx.ellipse(lightX, torchY - 2, 4, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Burning embers on torch head
+        ctx.fillStyle = 'rgba(200, 80, 30, 0.8)';
+        ctx.beginPath();
+        ctx.ellipse(lightX - 1, torchY - 1, 2, 3, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(lightX + 1, torchY - 2, 1.5, 2, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Main flame
+        ctx.fillStyle = 'rgba(255, 180, 60, 0.95)';
+        ctx.beginPath();
+        ctx.ellipse(lightX, torchY - 8, 4, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Flame inner core
+        ctx.fillStyle = 'rgba(255, 220, 100, 0.9)';
+        ctx.beginPath();
+        ctx.ellipse(lightX, torchY - 7, 2.5, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Flame bright center
+        ctx.fillStyle = 'rgba(255, 255, 200, 0.85)';
+        ctx.beginPath();
+        ctx.ellipse(lightX, torchY - 5, 1.5, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Flame tip
+        ctx.fillStyle = 'rgba(255, 200, 80, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(lightX, torchY - 14);
+        ctx.lineTo(lightX - 2, torchY - 8);
+        ctx.lineTo(lightX + 2, torchY - 8);
         ctx.closePath();
         ctx.fill();
         
-        // Wooden shelf top
-        ctx.fillStyle = '#5a4830';
-        ctx.fillRect(lightX - 12, shelfY, 18, 3);
-        
-        // Shelf edge highlight
-        ctx.fillStyle = '#6a5840';
-        ctx.fillRect(lightX - 12, shelfY, 18, 1);
-        
-        // Shelf shadow underneath
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.fillRect(lightX - 11, shelfY + 3, 16, 2);
-        
-        // Wood grain on shelf
-        ctx.strokeStyle = 'rgba(60, 40, 25, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(lightX - 10, shelfY + 1);
-        ctx.lineTo(lightX + 4, shelfY + 1);
-        ctx.stroke();
-        
-        // Candle base plate on shelf
-        ctx.fillStyle = '#3a3530';
-        ctx.beginPath();
-        ctx.ellipse(lightX, shelfY - 1, 4, 1.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Candle body (cream/white)
-        ctx.fillStyle = '#e8e0d0';
-        ctx.fillRect(lightX - 2, shelfY - 1 - candleH, 4, candleH);
-        
-        // Candle shading
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.fillRect(lightX + 1, shelfY - 1 - candleH, 1, candleH);
-        
-        // Wick
-        ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(lightX, shelfY - 1 - candleH - 2, 1, 3);
-        
-        // Flame
-        ctx.fillStyle = 'rgba(255, 200, 80, 0.95)';
-        ctx.beginPath();
-        ctx.ellipse(lightX, shelfY - 1 - candleH - 4, 2, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Flame core (bright)
-        ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
-        ctx.beginPath();
-        ctx.ellipse(lightX, shelfY - 1 - candleH - 3, 1, 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Wax drips on candle
-        if (decorRandom() > 0.4) {
-          ctx.fillStyle = 'rgba(220, 210, 190, 0.8)';
-          ctx.fillRect(lightX - 2, shelfY - candleH + 1, 1, 3 + decorRandom() * 3);
+        // Sparks/embers floating up
+        for (let s = 0; s < 3; s++) {
+          const sparkX = lightX + (decorRandom() - 0.5) * 10;
+          const sparkY = torchY - 16 - decorRandom() * 12;
+          ctx.fillStyle = `rgba(255, ${150 + Math.floor(decorRandom() * 80)}, 50, ${0.5 + decorRandom() * 0.4})`;
+          ctx.beginPath();
+          ctx.arc(sparkX, sparkY, 1, 0, Math.PI * 2);
+          ctx.fill();
         }
         
-        // Wax drips on shelf
-        if (decorRandom() > 0.5) {
-          ctx.fillStyle = 'rgba(210, 200, 180, 0.6)';
-          ctx.fillRect(lightX + 2, shelfY - 1, 2, 2);
-        }
-        
-        // Glow effect
-        const glowGrad = ctx.createRadialGradient(lightX, shelfY - candleH - 5, 0, lightX, shelfY - candleH - 5, 25);
-        glowGrad.addColorStop(0, 'rgba(255, 180, 80, 0.2)');
-        glowGrad.addColorStop(1, 'rgba(255, 150, 50, 0)');
+        // Large glow effect
+        const glowGrad = ctx.createRadialGradient(lightX, torchY - 6, 0, lightX, torchY - 6, 45);
+        glowGrad.addColorStop(0, 'rgba(255, 150, 50, 0.3)');
+        glowGrad.addColorStop(0.5, 'rgba(255, 120, 40, 0.15)');
+        glowGrad.addColorStop(1, 'rgba(255, 100, 30, 0)');
         ctx.fillStyle = glowGrad;
-        ctx.fillRect(lightX - 30, shelfY - candleH - 30, 60, 55);
+        ctx.fillRect(lightX - 50, torchY - 50, 100, 90);
       }
     }
   };
