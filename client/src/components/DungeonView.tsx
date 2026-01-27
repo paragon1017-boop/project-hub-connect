@@ -136,6 +136,13 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
       const beamCount = 5;
       const beamSizes = [1.2, 0.8, 1.0, 0.9, 1.1]; // Variation in beam thickness
       
+      // Seeded random for consistent wood details
+      let woodSeed = 54321;
+      const woodRandom = () => {
+        woodSeed = (woodSeed * 1103515245 + 12345) & 0x7fffffff;
+        return woodSeed / 0x7fffffff;
+      };
+      
       for (let i = 1; i <= beamCount; i++) {
         const beamY = Math.floor((h / 2) * (i / (beamCount + 1)));
         const p = Math.floor(h / 2) - beamY;
@@ -145,42 +152,103 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
         const sizeMultiplier = beamSizes[(i - 1) % beamSizes.length];
         const beamHeight = Math.max(8, Math.floor(22 / rowDistance * sizeMultiplier));
         const darkness = Math.min(0.6, rowDistance / 8);
+        const beamTop = beamY - beamHeight/2;
+        const beamBottom = beamY + beamHeight/2;
         
-        // Rectangular wood beam - flat top and bottom colors
-        const topColor = '#3a2815';
-        const mainColor = '#5a4228';
-        const bottomColor = '#2a1a0a';
+        // Base wood colors with slight variation per beam
+        const baseR = 90 + Math.floor(woodRandom() * 20);
+        const baseG = 66 + Math.floor(woodRandom() * 15);
+        const baseB = 40 + Math.floor(woodRandom() * 10);
         
         // Top edge highlight
-        ctx.fillStyle = topColor;
-        ctx.fillRect(0, beamY - beamHeight/2, w, 2);
+        ctx.fillStyle = `rgb(${baseR - 32}, ${baseG - 26}, ${baseB - 22})`;
+        ctx.fillRect(0, beamTop, w, 2);
         
-        // Main beam body (solid rectangular)
-        ctx.fillStyle = mainColor;
-        ctx.fillRect(0, beamY - beamHeight/2 + 2, w, beamHeight - 4);
+        // Main beam body with wood grain texture
+        for (let bx = 0; bx < w; bx += 2) {
+          // Vertical color variation (lighter in middle, darker at edges)
+          for (let by = beamTop + 2; by < beamBottom - 2; by += 2) {
+            const distFromCenter = Math.abs(by - beamY) / (beamHeight / 2);
+            const edgeDarken = distFromCenter * 0.3;
+            
+            // Horizontal grain streaks
+            const grainOffset = Math.sin(bx * 0.1 + i * 10) * 8;
+            const grainBrightness = 0.85 + Math.sin((bx + grainOffset) * 0.05 + by * 0.2) * 0.15;
+            
+            const r = Math.floor((baseR - edgeDarken * 40) * grainBrightness);
+            const g = Math.floor((baseG - edgeDarken * 30) * grainBrightness);
+            const b = Math.floor((baseB - edgeDarken * 20) * grainBrightness);
+            
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillRect(bx, by, 2, 2);
+          }
+        }
         
-        // Bottom edge (darker)
-        ctx.fillStyle = bottomColor;
-        ctx.fillRect(0, beamY + beamHeight/2 - 2, w, 2);
-        
-        // Add horizontal wood grain lines for texture (running the long way)
-        ctx.strokeStyle = 'rgba(30, 20, 10, 0.3)';
+        // Add detailed wood grain lines with slight waviness
         ctx.lineWidth = 1;
-        const grainSpacing = Math.max(2, Math.floor(beamHeight / 4));
-        for (let gy = beamY - beamHeight/2 + grainSpacing; gy < beamY + beamHeight/2; gy += grainSpacing) {
+        const grainSpacing = Math.max(2, Math.floor(beamHeight / 5));
+        for (let gy = beamTop + grainSpacing; gy < beamBottom - 2; gy += grainSpacing) {
+          ctx.strokeStyle = `rgba(30, 20, 10, ${0.2 + woodRandom() * 0.2})`;
           ctx.beginPath();
           ctx.moveTo(0, gy);
-          ctx.lineTo(w, gy);
+          for (let gx = 0; gx < w; gx += 10) {
+            const waveY = gy + Math.sin(gx * 0.03 + i) * 1.5;
+            ctx.lineTo(gx, waveY);
+          }
           ctx.stroke();
         }
         
+        // Add wood knots (darker oval spots)
+        const knotCount = 2 + Math.floor(woodRandom() * 3);
+        for (let k = 0; k < knotCount; k++) {
+          const knotX = Math.floor(woodRandom() * w);
+          const knotY = beamTop + 3 + Math.floor(woodRandom() * (beamHeight - 6));
+          const knotW = 3 + Math.floor(woodRandom() * 4);
+          const knotH = 2 + Math.floor(woodRandom() * 3);
+          
+          // Knot center (dark)
+          ctx.fillStyle = `rgba(25, 18, 10, ${0.6 + woodRandom() * 0.3})`;
+          ctx.beginPath();
+          ctx.ellipse(knotX, knotY, knotW, knotH, 0, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Knot ring (slightly lighter)
+          ctx.strokeStyle = `rgba(45, 32, 20, 0.5)`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(knotX, knotY, knotW + 1, knotH + 1, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        
+        // Add lighter streaks (weathered wood highlights)
+        for (let s = 0; s < 3; s++) {
+          const streakY = beamTop + 3 + Math.floor(woodRandom() * (beamHeight - 6));
+          const streakStart = Math.floor(woodRandom() * w * 0.5);
+          const streakLen = 20 + Math.floor(woodRandom() * 60);
+          ctx.fillStyle = `rgba(140, 115, 80, ${0.15 + woodRandom() * 0.15})`;
+          ctx.fillRect(streakStart, streakY, streakLen, 1);
+        }
+        
+        // Add darker cracks/age lines
+        for (let c = 0; c < 2; c++) {
+          const crackY = beamTop + 2 + Math.floor(woodRandom() * (beamHeight - 4));
+          const crackStart = Math.floor(woodRandom() * w * 0.7);
+          const crackLen = 10 + Math.floor(woodRandom() * 30);
+          ctx.fillStyle = `rgba(20, 12, 5, ${0.3 + woodRandom() * 0.2})`;
+          ctx.fillRect(crackStart, crackY, crackLen, 1);
+        }
+        
+        // Bottom edge (darker)
+        ctx.fillStyle = `rgb(${baseR - 48}, ${baseG - 40}, ${baseB - 30})`;
+        ctx.fillRect(0, beamBottom - 2, w, 2);
+        
         // Darken distant beams
         ctx.fillStyle = `rgba(5, 8, 5, ${darkness})`;
-        ctx.fillRect(0, beamY - beamHeight/2, w, beamHeight);
+        ctx.fillRect(0, beamTop, w, beamHeight);
         
         // Hard bottom shadow for depth
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(0, beamY + beamHeight/2, w, 3);
+        ctx.fillRect(0, beamBottom, w, 3);
       }
     } else {
       // Fallback gradient ceiling
