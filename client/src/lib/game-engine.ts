@@ -79,6 +79,63 @@ export interface Equipment {
 // Enhancement bonus multipliers: +1 = 10%, +2 = 25%, +3 = 50%, +4 = 100%
 export const ENHANCEMENT_MULTIPLIERS = [0, 0.10, 0.25, 0.50, 1.00];
 
+// Potion System
+export type PotionType = 'health' | 'mana' | 'elixir';
+
+export interface Potion {
+  id: string;
+  name: string;
+  type: PotionType;
+  healAmount: number;  // HP restored (0 for mana potions)
+  manaAmount: number;  // MP restored (0 for health potions)
+  rarity: 'common' | 'uncommon' | 'rare';
+  description: string;
+}
+
+// Available potions
+export const POTIONS: Potion[] = [
+  // Health Potions
+  { id: 'minor_health_potion', name: 'Minor Health Potion', type: 'health', healAmount: 25, manaAmount: 0, rarity: 'common', description: 'Restores 25 HP' },
+  { id: 'health_potion', name: 'Health Potion', type: 'health', healAmount: 50, manaAmount: 0, rarity: 'uncommon', description: 'Restores 50 HP' },
+  { id: 'greater_health_potion', name: 'Greater Health Potion', type: 'health', healAmount: 100, manaAmount: 0, rarity: 'rare', description: 'Restores 100 HP' },
+  // Mana Potions
+  { id: 'minor_mana_potion', name: 'Minor Mana Potion', type: 'mana', healAmount: 0, manaAmount: 15, rarity: 'common', description: 'Restores 15 MP' },
+  { id: 'mana_potion', name: 'Mana Potion', type: 'mana', healAmount: 0, manaAmount: 30, rarity: 'uncommon', description: 'Restores 30 MP' },
+  { id: 'greater_mana_potion', name: 'Greater Mana Potion', type: 'mana', healAmount: 0, manaAmount: 60, rarity: 'rare', description: 'Restores 60 MP' },
+  // Elixirs (both)
+  { id: 'minor_elixir', name: 'Minor Elixir', type: 'elixir', healAmount: 20, manaAmount: 10, rarity: 'uncommon', description: 'Restores 20 HP and 10 MP' },
+  { id: 'elixir', name: 'Elixir', type: 'elixir', healAmount: 50, manaAmount: 25, rarity: 'rare', description: 'Restores 50 HP and 25 MP' },
+];
+
+// Get random potion drop based on floor level
+export function getRandomPotionDrop(floor: number): Potion | null {
+  // 30% chance to drop a potion
+  if (Math.random() > 0.30) return null;
+  
+  // Filter potions based on floor (higher floors = better potions)
+  let availablePotions: Potion[];
+  if (floor <= 2) {
+    availablePotions = POTIONS.filter(p => p.rarity === 'common');
+  } else if (floor <= 4) {
+    availablePotions = POTIONS.filter(p => p.rarity === 'common' || p.rarity === 'uncommon');
+  } else {
+    availablePotions = POTIONS;
+  }
+  
+  // Weight by rarity (common more likely)
+  const weighted: Potion[] = [];
+  for (const potion of availablePotions) {
+    const weight = potion.rarity === 'common' ? 5 : potion.rarity === 'uncommon' ? 3 : 1;
+    for (let i = 0; i < weight; i++) {
+      weighted.push(potion);
+    }
+  }
+  
+  const selected = weighted[Math.floor(Math.random() * weighted.length)];
+  // Return a copy with unique id
+  return { ...selected, id: `${selected.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}` };
+}
+
 // Get display name with enhancement level
 export function getEnhancedName(item: Equipment): string {
   const enhancement = item.enhancement || 0;
@@ -766,8 +823,10 @@ export function getRandomEquipmentDrop(floor: number): Equipment | null {
 export function createEmptyEquipment(): PlayerEquipment {
   return {
     weapon: null,
+    shield: null,
     armor: null,
     helmet: null,
+    gloves: null,
     accessory: null,
   };
 }
@@ -858,6 +917,7 @@ export interface GameData {
   map: number[][]; // 0 = floor, 1 = wall
   inventory: string[];
   equipmentInventory: Equipment[]; // Unequipped gear
+  potionInventory: Potion[]; // Potions bag
   gold: number;
   level: number; // Dungeon Floor
 }
@@ -900,8 +960,12 @@ export function createInitialState(): GameData {
     y: 1,
     dir: EAST,
     map: generateMaze(width, height, startingFloor),
-    inventory: ['Potion', 'Torch'],
+    inventory: ['Torch'],
     equipmentInventory: [], // Start with no extra equipment
+    potionInventory: [
+      { ...POTIONS[0], id: `minor_health_potion_start_1` }, // 2 minor health potions to start
+      { ...POTIONS[0], id: `minor_health_potion_start_2` },
+    ],
     gold: 0,
     level: startingFloor,
   };

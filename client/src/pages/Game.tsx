@@ -14,10 +14,11 @@ import {
   getEffectiveStats, Equipment, getRandomEquipmentDrop, canEquip,
   getEnhancedName, getEnhancedStats,
   TILE_FLOOR, TILE_WALL, TILE_DOOR, TILE_LADDER_DOWN, TILE_LADDER_UP,
-  generateFloorMap
+  generateFloorMap,
+  Potion, getRandomPotionDrop
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
-import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown } from "lucide-react";
+import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown, Backpack } from "lucide-react";
 
 function formatEquipmentStats(item: Equipment): string {
   const stats = getEnhancedStats(item);
@@ -47,8 +48,10 @@ export default function Game() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showInventory, setShowInventory] = useState(false);
   const [selectedCharForEquip, setSelectedCharForEquip] = useState(0);
   const [selectedCharForStats, setSelectedCharForStats] = useState(0);
+  const [selectedCharForPotion, setSelectedCharForPotion] = useState(0);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Restore focus after combat ends
@@ -76,11 +79,12 @@ export default function Game() {
           return char;
         });
         
-        // Add equipmentInventory if missing
+        // Add equipmentInventory and potionInventory if missing
         const migratedData: GameData = {
           ...loadedData,
           party: migratedParty,
           equipmentInventory: loadedData.equipmentInventory || [],
+          potionInventory: loadedData.potionInventory || [],
         };
         
         setGame(migratedData);
@@ -312,6 +316,18 @@ export default function Game() {
     }
   }, {}, [combatState.active]);
   
+  // Toggle inventory panel (I key)
+  useKey('i', () => {
+    if (!combatState.active) {
+      setShowInventory(prev => !prev);
+    }
+  }, {}, [combatState.active]);
+  useKey('I', () => {
+    if (!combatState.active) {
+      setShowInventory(prev => !prev);
+    }
+  }, {}, [combatState.active]);
+  
   // Equip an item from inventory
   const equipItem = useCallback((charIndex: number, item: Equipment) => {
     if (!game) return;
@@ -387,6 +403,60 @@ export default function Game() {
     
     setGame(prev => prev ? ({ ...prev, equipmentInventory: newEquipInv }) : null);
     log(`Dropped ${getEnhancedName(item)}.`);
+  }, [game, log]);
+  
+  // Use a potion on a character
+  const usePotion = useCallback((potion: Potion, charIndex: number) => {
+    if (!game) return;
+    
+    const char = game.party[charIndex];
+    if (char.hp <= 0) {
+      log(`${char.name} is unconscious!`);
+      return;
+    }
+    
+    const effectiveStats = getEffectiveStats(char);
+    let healedHp = 0;
+    let restoredMp = 0;
+    
+    // Apply healing
+    const newParty = game.party.map((c, idx) => {
+      if (idx !== charIndex) return c;
+      
+      let newHp = c.hp;
+      let newMp = c.mp;
+      
+      if (potion.healAmount > 0) {
+        healedHp = Math.min(potion.healAmount, effectiveStats.maxHp - c.hp);
+        newHp = Math.min(effectiveStats.maxHp, c.hp + potion.healAmount);
+      }
+      if (potion.manaAmount > 0) {
+        restoredMp = Math.min(potion.manaAmount, effectiveStats.maxMp - c.mp);
+        newMp = Math.min(effectiveStats.maxMp, c.mp + potion.manaAmount);
+      }
+      
+      return { ...c, hp: newHp, mp: newMp };
+    });
+    
+    // Remove potion from inventory
+    const newPotionInv = game.potionInventory.filter(p => p.id !== potion.id);
+    
+    setGame(prev => prev ? ({ ...prev, party: newParty, potionInventory: newPotionInv }) : null);
+    
+    // Log the effect
+    const effects: string[] = [];
+    if (healedHp > 0) effects.push(`+${healedHp} HP`);
+    if (restoredMp > 0) effects.push(`+${restoredMp} MP`);
+    log(`${char.name} used ${potion.name}: ${effects.join(', ')}`);
+  }, [game, log]);
+  
+  // Drop a potion
+  const dropPotion = useCallback((potion: Potion) => {
+    if (!game) return;
+    
+    const newPotionInv = game.potionInventory.filter(p => p.id !== potion.id);
+    setGame(prev => prev ? ({ ...prev, potionInventory: newPotionInv }) : null);
+    log(`Dropped ${potion.name}.`);
   }, [game, log]);
 
   // Combat keyboard shortcuts and ladder interaction
@@ -592,6 +662,26 @@ export default function Game() {
         }) : null);
       }
       
+      // Check for potion drops from each monster
+      const droppedPotions: Potion[] = [];
+      for (const monster of newMonsters) {
+        const potionDrop = getRandomPotionDrop(game.level);
+        if (potionDrop) {
+          droppedPotions.push(potionDrop);
+        }
+      }
+      
+      if (droppedPotions.length > 0) {
+        droppedPotions.forEach(potion => {
+          log(`Found ${potion.name}!`);
+        });
+        // Add dropped potions to inventory
+        setGame(prev => prev ? ({
+          ...prev,
+          potionInventory: [...prev.potionInventory, ...droppedPotions]
+        }) : null);
+      }
+      
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, defending: false });
       setTimeout(() => awardXP(totalXp), 100);
       return;
@@ -749,6 +839,17 @@ export default function Game() {
             >
               <User className="w-4 h-4 mr-2" />
               STATS (C)
+            </RetroButton>
+            
+            {/* Inventory Toggle Button */}
+            <RetroButton 
+              onClick={() => setShowInventory(prev => !prev)}
+              className="w-full mt-2"
+              variant={showInventory ? "default" : "ghost"}
+              data-testid="button-inventory"
+            >
+              <Backpack className="w-4 h-4 mr-2" />
+              ITEMS (I)
             </RetroButton>
           </RetroCard>
           
@@ -1066,6 +1167,117 @@ export default function Game() {
                     </div>
                   );
                 })()}
+              </div>
+            </div>
+          )}
+          
+          {/* Inventory Panel - Potions */}
+          {showInventory && (
+            <div className="w-full bg-black/95 backdrop-blur-sm border border-primary/30 rounded-lg shadow-2xl shadow-black/50 mt-2">
+              <div className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-primary font-pixel text-sm">ITEMS BAG</h3>
+                  <button 
+                    onClick={() => setShowInventory(false)}
+                    className="text-muted-foreground hover:text-primary text-lg px-2"
+                    data-testid="button-close-inventory"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                {/* Character Selection for using potions */}
+                <div className="flex gap-1 mb-3">
+                  {game.party.map((char, idx) => (
+                    <button
+                      key={char.id}
+                      onClick={() => setSelectedCharForPotion(idx)}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                        selectedCharForPotion === idx 
+                          ? 'bg-primary/20 text-primary border border-primary/40 shadow-lg shadow-primary/10' 
+                          : 'bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10'
+                      } ${char.hp <= 0 ? 'opacity-50' : ''}`}
+                      data-testid={`button-potion-char-${idx}`}
+                    >
+                      {char.name}
+                      {char.hp <= 0 && ' (KO)'}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Selected Character HP/MP preview */}
+                {game.party[selectedCharForPotion] && (() => {
+                  const char = game.party[selectedCharForPotion];
+                  const effectiveStats = getEffectiveStats(char);
+                  return (
+                    <div className="grid grid-cols-2 gap-2 mb-3 text-[10px]">
+                      <div className="bg-white/5 rounded px-2 py-1 border border-white/10">
+                        <span className="text-green-400">{char.hp}/{effectiveStats.maxHp} HP</span>
+                      </div>
+                      <div className="bg-white/5 rounded px-2 py-1 border border-white/10">
+                        <span className="text-blue-400">{char.mp}/{effectiveStats.maxMp} MP</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                
+                {/* Potions List */}
+                <div className="pt-2 border-t border-white/10">
+                  <div className="text-[10px] text-muted-foreground mb-1">
+                    Potions ({game.potionInventory.length})
+                  </div>
+                  {game.potionInventory.length === 0 ? (
+                    <div className="text-[10px] text-muted-foreground italic text-center py-2">
+                      No potions
+                    </div>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                      {game.potionInventory.map((potion) => (
+                        <div 
+                          key={potion.id}
+                          className="flex items-center justify-between bg-white/5 px-2 py-1.5 rounded border border-white/10"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-[10px] font-medium truncate ${
+                              potion.rarity === 'rare' ? 'text-blue-400' : 
+                              potion.rarity === 'uncommon' ? 'text-green-400' : 
+                              'text-foreground'
+                            }`}>
+                              {potion.type === 'health' && '❤️ '}
+                              {potion.type === 'mana' && '💧 '}
+                              {potion.type === 'elixir' && '✨ '}
+                              {potion.name}
+                            </div>
+                            <div className="text-[8px] text-muted-foreground">
+                              {potion.description}
+                            </div>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0 ml-2">
+                            <button
+                              onClick={() => usePotion(potion, selectedCharForPotion)}
+                              disabled={game.party[selectedCharForPotion]?.hp <= 0}
+                              className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${
+                                game.party[selectedCharForPotion]?.hp > 0
+                                  ? 'bg-primary/20 text-primary hover:bg-primary/40' 
+                                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+                              }`}
+                              data-testid={`button-use-potion-${potion.id}`}
+                            >
+                              Use
+                            </button>
+                            <button
+                              onClick={() => dropPotion(potion)}
+                              className="text-[9px] px-1.5 py-0.5 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded transition-colors"
+                              data-testid={`button-drop-potion-${potion.id}`}
+                            >
+                              Drop
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
