@@ -513,10 +513,10 @@ export default function Game() {
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
       
       <div className="max-w-5xl w-full relative z-10 space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
         {/* LEFT COLUMN: Commands & Equipment */}
-        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1">
+        <div className="lg:col-span-2 space-y-2 order-2 lg:order-1">
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
@@ -670,7 +670,7 @@ export default function Game() {
         </div>
 
         {/* CENTER COLUMN: Viewport */}
-        <div className="lg:col-span-6 order-1 lg:order-2">
+        <div className="lg:col-span-8 order-1 lg:order-2">
           <RetroCard className="p-1">
             <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
@@ -885,7 +885,7 @@ export default function Game() {
         </div>
 
         {/* RIGHT COLUMN: Party Stats */}
-        <div className="lg:col-span-3 order-3">
+        <div className="lg:col-span-2 order-3">
           <RetroCard title="PARTY STATUS" className="h-full space-y-3">
             {game.party.map((char) => (
               <div key={char.id} className="bg-white/5 p-3 rounded-lg border border-white/10">
