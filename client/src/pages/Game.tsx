@@ -604,12 +604,12 @@ export default function Game() {
                     );
                   })}
                   
-                  {/* Show effective stats - inline */}
-                  <div className="flex gap-3 text-xs text-muted-foreground pt-2 justify-center">
-                    <span className="bg-white/5 px-2 py-1 rounded">ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
-                    <span className="bg-white/5 px-2 py-1 rounded">DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
-                    <span className="bg-white/5 px-2 py-1 rounded">HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
-                    <span className="bg-white/5 px-2 py-1 rounded">MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
+                  {/* Show effective stats - grid layout */}
+                  <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground pt-2">
+                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
+                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
+                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
+                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
                   </div>
                 </div>
               )}
