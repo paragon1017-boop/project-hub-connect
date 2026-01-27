@@ -334,6 +334,35 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
          ctx.fillStyle = "#000";
          ctx.fillRect(x, drawStart, 2, drawEnd - drawStart);
          ctx.globalAlpha = 1.0;
+         
+         // Draw cement baseboard at bottom of wall
+         const baseboardHeight = Math.max(3, Math.floor(lineHeight * 0.06));
+         const baseboardTop = drawEnd - baseboardHeight;
+         
+         // Cement texture with slight color variation
+         const cementBase = side === 1 ? 85 : 100; // Slightly darker on side walls
+         const variation = ((x * 7 + Math.floor(baseboardTop)) % 15) - 7;
+         const r = cementBase + variation;
+         const g = cementBase + variation - 5;
+         const b = cementBase + variation - 3;
+         
+         // Main baseboard body
+         ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+         ctx.fillRect(x, baseboardTop, 2, baseboardHeight);
+         
+         // Top edge highlight (cement cap)
+         ctx.fillStyle = `rgb(${r + 20}, ${g + 18}, ${b + 15})`;
+         ctx.fillRect(x, baseboardTop, 2, 1);
+         
+         // Bottom shadow where it meets floor
+         ctx.fillStyle = `rgba(0, 0, 0, 0.4)`;
+         ctx.fillRect(x, drawEnd - 1, 2, 1);
+         
+         // Apply distance fog to baseboard
+         ctx.globalAlpha = 1 - fog;
+         ctx.fillStyle = "#000";
+         ctx.fillRect(x, baseboardTop, 2, baseboardHeight);
+         ctx.globalAlpha = 1.0;
       } else {
          // Fallback color
          const color = side === 1 ? '#555' : '#777';
