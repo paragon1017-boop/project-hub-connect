@@ -9,7 +9,8 @@ import {
   NORTH, SOUTH, EAST, WEST, 
   getRandomMonster, Monster,
   xpForLevel, getLevelUpStats, Player,
-  Ability, getAbilitiesForJob, getScaledAbilityPower
+  Ability, getAbilitiesForJob, getScaledAbilityPower,
+  getEffectiveStats, Equipment, getRandomEquipmentDrop, canEquip
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
 import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown } from "lucide-react";
@@ -30,6 +31,8 @@ export default function Game() {
     defending: boolean 
   }>({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, defending: false });
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showEquipment, setShowEquipment] = useState(false);
+  const [selectedCharForEquip, setSelectedCharForEquip] = useState(0);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Restore focus after combat ends
@@ -43,7 +46,28 @@ export default function Game() {
   useEffect(() => {
     if (!isLoading) {
       if (serverState && serverState.data) {
-        setGame(serverState.data as unknown as GameData);
+        // Migrate old saves that don't have equipment fields
+        const loadedData = serverState.data as unknown as GameData;
+        
+        // Add equipment to party members if missing
+        const migratedParty = loadedData.party.map(char => {
+          if (!char.equipment) {
+            return {
+              ...char,
+              equipment: { weapon: null, armor: null, helmet: null, accessory: null }
+            };
+          }
+          return char;
+        });
+        
+        // Add equipmentInventory if missing
+        const migratedData: GameData = {
+          ...loadedData,
+          party: migratedParty,
+          equipmentInventory: loadedData.equipmentInventory || [],
+        };
+        
+        setGame(migratedData);
         log("Game loaded from server.");
       } else {
         setGame(createInitialState());
@@ -141,6 +165,79 @@ export default function Game() {
   
   // Toggle mini map
   useKey('m', () => setShowMiniMap(prev => !prev), {}, []);
+  
+  // Toggle equipment panel (E key)
+  useKey('e', () => {
+    if (!combatState.active) {
+      setShowEquipment(prev => !prev);
+    }
+  }, {}, [combatState.active]);
+  
+  // Equip an item from inventory
+  const equipItem = useCallback((charIndex: number, item: Equipment) => {
+    if (!game) return;
+    const char = game.party[charIndex];
+    if (!canEquip(char, item)) {
+      log(`${char.name} cannot equip ${item.name}!`);
+      return;
+    }
+    
+    const slot = item.slot;
+    const currentEquip = char.equipment[slot];
+    
+    // Update party with new equipment and clamp HP/MP to new effective max
+    const newParty = game.party.map((c, idx) => {
+      if (idx !== charIndex) return c;
+      const updatedChar = {
+        ...c,
+        equipment: { ...c.equipment, [slot]: item }
+      };
+      const newStats = getEffectiveStats(updatedChar);
+      return {
+        ...updatedChar,
+        hp: Math.min(c.hp, newStats.maxHp),
+        mp: Math.min(c.mp, newStats.maxMp)
+      };
+    });
+    
+    // Update equipment inventory (remove equipped, add unequipped if any)
+    let newEquipInv = game.equipmentInventory.filter(e => e.id !== item.id);
+    if (currentEquip) {
+      newEquipInv = [...newEquipInv, currentEquip];
+    }
+    
+    setGame(prev => prev ? ({ ...prev, party: newParty, equipmentInventory: newEquipInv }) : null);
+    log(`${char.name} equipped ${item.name}!`);
+  }, [game, log]);
+  
+  // Unequip an item to inventory
+  const unequipItem = useCallback((charIndex: number, slot: 'weapon' | 'armor' | 'helmet' | 'accessory') => {
+    if (!game) return;
+    const char = game.party[charIndex];
+    const item = char.equipment[slot];
+    if (!item) return;
+    
+    // Update party and clamp HP/MP to new effective max after unequipping
+    const newParty = game.party.map((c, idx) => {
+      if (idx !== charIndex) return c;
+      const updatedChar = {
+        ...c,
+        equipment: { ...c.equipment, [slot]: null }
+      };
+      const newStats = getEffectiveStats(updatedChar);
+      return {
+        ...updatedChar,
+        hp: Math.min(c.hp, newStats.maxHp),
+        mp: Math.min(c.mp, newStats.maxMp)
+      };
+    });
+    
+    // Add to inventory
+    const newEquipInv = [...game.equipmentInventory, item];
+    
+    setGame(prev => prev ? ({ ...prev, party: newParty, equipmentInventory: newEquipInv }) : null);
+    log(`${char.name} unequipped ${item.name}.`);
+  }, [game, log]);
 
   // Combat keyboard shortcuts
   useKey(' ', (e) => {
@@ -216,8 +313,9 @@ export default function Game() {
       
       const targetIdx = Math.floor(Math.random() * aliveMembersNow.length);
       const target = aliveMembersNow[targetIdx];
+      const targetStats = getEffectiveStats(target);
       const defenseMultiplier = defendingActive ? 2 : 1;
-      const monsterDmg = Math.max(1, Math.floor(monster.attack - (target.defense * defenseMultiplier / 2)));
+      const monsterDmg = Math.max(1, Math.floor(monster.attack - (targetStats.defense * defenseMultiplier / 2)));
       
       newParty = newParty.map(c => 
         c.id === target.id ? { ...c, hp: Math.max(0, c.hp - monsterDmg) } : c
@@ -265,9 +363,12 @@ export default function Game() {
     // Scale ability power with character level
     const scaledPower = getScaledAbilityPower(ability, char.level);
     
+    // Get effective stats with equipment
+    const charStats = getEffectiveStats(char);
+    
     switch (ability.type) {
       case 'attack': {
-        const damage = Math.max(1, Math.floor(char.attack * scaledPower - (targetMonster.defense / 2)));
+        const damage = Math.max(1, Math.floor(charStats.attack * scaledPower - (targetMonster.defense / 2)));
         newMonsters[combatState.targetIndex] = { ...targetMonster, hp: targetMonster.hp - damage };
         log(`${char.name} uses ${ability.name} on ${targetMonster.name}! ${damage} damage!`);
         break;
@@ -279,12 +380,16 @@ export default function Game() {
           targetIdx = charIndex;
         } else {
           // Heal the most injured party member
-          targetIdx = newParty.reduce((minIdx, c, idx) => 
-            c.hp > 0 && (c.hp / c.maxHp) < (newParty[minIdx].hp / newParty[minIdx].maxHp) ? idx : minIdx, 0);
+          targetIdx = newParty.reduce((minIdx, c, idx) => {
+            const cStats = getEffectiveStats(c);
+            const minStats = getEffectiveStats(newParty[minIdx]);
+            return c.hp > 0 && (c.hp / cStats.maxHp) < (newParty[minIdx].hp / minStats.maxHp) ? idx : minIdx;
+          }, 0);
         }
         // Scale heal amount with level (using scaledPower for heal abilities)
+        const targetEffectiveStats = getEffectiveStats(newParty[targetIdx]);
         const baseHeal = ability.type === 'heal' ? scaledPower : ability.power;
-        const healAmount = Math.min(Math.floor(baseHeal), newParty[targetIdx].maxHp - newParty[targetIdx].hp);
+        const healAmount = Math.min(Math.floor(baseHeal), targetEffectiveStats.maxHp - newParty[targetIdx].hp);
         newParty[targetIdx] = { ...newParty[targetIdx], hp: newParty[targetIdx].hp + healAmount };
         log(`${char.name} uses ${ability.name}! ${newParty[targetIdx].name} healed ${healAmount} HP!`);
         break;
@@ -308,6 +413,28 @@ export default function Game() {
     if (aliveMonsters.length === 0) {
       const totalXp = newMonsters.reduce((sum, m) => sum + m.xpValue, 0);
       log(`Victory! +${totalXp} XP`);
+      
+      // Check for equipment drops from each monster
+      const droppedEquipment: Equipment[] = [];
+      for (const monster of newMonsters) {
+        const drop = getRandomEquipmentDrop(game.level);
+        if (drop) {
+          // Create a unique instance of the dropped item
+          droppedEquipment.push({ ...drop, id: `${drop.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` });
+        }
+      }
+      
+      if (droppedEquipment.length > 0) {
+        droppedEquipment.forEach(item => {
+          log(`Found ${item.name}!`);
+        });
+        // Add dropped equipment to inventory
+        setGame(prev => prev ? ({
+          ...prev,
+          equipmentInventory: [...prev.equipmentInventory, ...droppedEquipment]
+        }) : null);
+      }
+      
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, defending: false });
       setTimeout(() => awardXP(totalXp), 100);
       return;
@@ -379,7 +506,7 @@ export default function Game() {
                 <span className="font-pixel text-xs text-primary">{char.name}</span>
                 <span className="font-retro text-xs text-muted-foreground">Lv.{char.level}</span>
               </div>
-              <StatBar label="HP" current={char.hp} max={char.maxHp} color={char.color} />
+              <StatBar label="HP" current={char.hp} max={getEffectiveStats(char).maxHp} color={char.color} />
             </div>
           ))}
         </div>
@@ -535,7 +662,7 @@ export default function Game() {
                               {game.party[combatState.currentCharIndex].name}'s Turn
                             </span>
                             <span className="font-retro text-xs text-blue-400">
-                              MP: {game.party[combatState.currentCharIndex].mp}/{game.party[combatState.currentCharIndex].maxMp}
+                              MP: {game.party[combatState.currentCharIndex].mp}/{getEffectiveStats(game.party[combatState.currentCharIndex]).maxMp}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -610,20 +737,159 @@ export default function Game() {
                   <span className="font-retro text-muted-foreground text-sm">Lv.{char.level} {char.job}</span>
                 </div>
                 <div className="space-y-1">
-                  <StatBar label="HP" current={char.hp} max={char.maxHp} color={char.color} />
-                  <StatBar label="MP" current={char.mp} max={char.maxMp} color="#3498db" />
+                  <StatBar label="HP" current={char.hp} max={getEffectiveStats(char).maxHp} color={char.color} />
+                  <StatBar label="MP" current={char.mp} max={getEffectiveStats(char).maxMp} color="#3498db" />
                   <StatBar label="XP" current={char.xp} max={xpForLevel(char.level + 1)} color="#f39c12" />
                 </div>
               </div>
             ))}
             
-            <div className="mt-8 p-4 border-t border-border">
+            <div className="mt-4 p-4 border-t border-border">
               <div className="flex justify-between font-retro text-xl text-yellow-500">
                 <span>GOLD</span>
                 <span>{game.gold}</span>
               </div>
             </div>
+            
+            {/* Equipment Toggle Button */}
+            <RetroButton 
+              onClick={() => setShowEquipment(prev => !prev)}
+              className="w-full mt-2"
+              variant={showEquipment ? "default" : "ghost"}
+              data-testid="button-equipment"
+            >
+              <Sword className="w-4 h-4 mr-2" />
+              EQUIPMENT (E)
+            </RetroButton>
           </RetroCard>
+          
+          {/* Equipment Panel */}
+          {showEquipment && (
+            <RetroCard title="EQUIPMENT" className="mt-4">
+              {/* Character Selection */}
+              <div className="flex gap-1 mb-3">
+                {game.party.map((char, idx) => (
+                  <button
+                    key={char.id}
+                    onClick={() => setSelectedCharForEquip(idx)}
+                    className={`flex-1 px-2 py-1 text-xs font-pixel rounded border transition-colors ${
+                      selectedCharForEquip === idx 
+                        ? 'border-primary bg-primary/20 text-primary' 
+                        : 'border-border bg-black/40 text-muted-foreground hover:bg-black/60'
+                    }`}
+                    data-testid={`button-select-char-${idx}`}
+                  >
+                    {char.name}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Selected Character's Equipment Slots */}
+              {game.party[selectedCharForEquip] && (
+                <div className="space-y-2">
+                  <div className="text-xs font-pixel text-muted-foreground mb-2">
+                    {game.party[selectedCharForEquip].name}'s Gear
+                  </div>
+                  
+                  {(['weapon', 'armor', 'helmet', 'accessory'] as const).map(slot => {
+                    const item = game.party[selectedCharForEquip].equipment[slot];
+                    const effectiveStats = getEffectiveStats(game.party[selectedCharForEquip]);
+                    return (
+                      <div 
+                        key={slot} 
+                        className="flex items-center justify-between bg-black/40 p-2 rounded border border-border/50"
+                      >
+                        <div className="flex-1">
+                          <span className="text-xs font-retro text-muted-foreground capitalize">{slot}:</span>
+                          {item ? (
+                            <span className={`ml-2 text-xs font-pixel ${
+                              item.rarity === 'rare' ? 'text-blue-400' : 
+                              item.rarity === 'uncommon' ? 'text-green-400' : 
+                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
+                            }`}>
+                              {item.name}
+                            </span>
+                          ) : (
+                            <span className="ml-2 text-xs text-muted-foreground italic">Empty</span>
+                          )}
+                        </div>
+                        {item && (
+                          <button
+                            onClick={() => unequipItem(selectedCharForEquip, slot)}
+                            className="text-xs px-2 py-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded"
+                            data-testid={`button-unequip-${slot}`}
+                          >
+                            X
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show effective stats */}
+                  <div className="mt-3 pt-2 border-t border-border/50">
+                    <div className="text-xs font-pixel text-primary mb-1">Total Stats:</div>
+                    <div className="grid grid-cols-2 gap-1 text-xs font-retro">
+                      <span>ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
+                      <span>DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
+                      <span>HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
+                      <span>MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Equipment Inventory */}
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="text-xs font-pixel text-muted-foreground mb-2">
+                  Inventory ({game.equipmentInventory.length} items)
+                </div>
+                {game.equipmentInventory.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic text-center py-2">
+                    No unequipped items
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {game.equipmentInventory.map((item, idx) => {
+                      const char = game.party[selectedCharForEquip];
+                      const canEquipThis = canEquip(char, item);
+                      return (
+                        <div 
+                          key={`${item.id}-${idx}`}
+                          className={`flex items-center justify-between bg-black/40 p-2 rounded border border-border/50 ${
+                            !canEquipThis ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <span className={`text-xs font-pixel ${
+                              item.rarity === 'rare' ? 'text-blue-400' : 
+                              item.rarity === 'uncommon' ? 'text-green-400' : 
+                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
+                            }`}>
+                              {item.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-1 capitalize">({item.slot})</span>
+                          </div>
+                          <button
+                            onClick={() => equipItem(selectedCharForEquip, item)}
+                            disabled={!canEquipThis}
+                            className={`text-xs px-2 py-1 rounded ${
+                              canEquipThis 
+                                ? 'bg-primary/20 text-primary hover:bg-primary/40' 
+                                : 'bg-muted text-muted-foreground cursor-not-allowed'
+                            }`}
+                            data-testid={`button-equip-${item.id}`}
+                          >
+                            Equip
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </RetroCard>
+          )}
         </div>
         </div>
       </div>

@@ -28,10 +28,138 @@ export interface Ability {
   description: string;
 }
 
+// Equipment System
+export type EquipmentSlot = 'weapon' | 'armor' | 'helmet' | 'accessory';
+
+export interface Equipment {
+  id: string;
+  name: string;
+  slot: EquipmentSlot;
+  attack: number;
+  defense: number;
+  hp: number;
+  mp: number;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic';
+  allowedJobs: string[]; // Which jobs can equip this
+  description: string;
+}
+
+export interface PlayerEquipment {
+  weapon: Equipment | null;
+  armor: Equipment | null;
+  helmet: Equipment | null;
+  accessory: Equipment | null;
+}
+
 export interface Player extends Entity {
   job: string;
   xp: number;
   level: number;
+  equipment: PlayerEquipment;
+}
+
+// Equipment Database
+export const EQUIPMENT_DATABASE: Equipment[] = [
+  // Weapons
+  { id: 'rusty_sword', name: 'Rusty Sword', slot: 'weapon', attack: 3, defense: 0, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter'], description: 'A worn but serviceable blade' },
+  { id: 'iron_sword', name: 'Iron Sword', slot: 'weapon', attack: 6, defense: 0, hp: 0, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'A sturdy iron blade' },
+  { id: 'steel_sword', name: 'Steel Sword', slot: 'weapon', attack: 10, defense: 1, hp: 0, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'A finely crafted steel blade' },
+  { id: 'wooden_staff', name: 'Wooden Staff', slot: 'weapon', attack: 1, defense: 0, hp: 0, mp: 5, rarity: 'common', allowedJobs: ['Mage'], description: 'A simple magical focus' },
+  { id: 'crystal_staff', name: 'Crystal Staff', slot: 'weapon', attack: 2, defense: 0, hp: 0, mp: 12, rarity: 'uncommon', allowedJobs: ['Mage'], description: 'Channels magical energy effectively' },
+  { id: 'arcane_staff', name: 'Arcane Staff', slot: 'weapon', attack: 4, defense: 0, hp: 0, mp: 20, rarity: 'rare', allowedJobs: ['Mage'], description: 'Crackling with arcane power' },
+  { id: 'brass_knuckles', name: 'Brass Knuckles', slot: 'weapon', attack: 4, defense: 0, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Monk'], description: 'Enhances unarmed strikes' },
+  { id: 'iron_fists', name: 'Iron Fists', slot: 'weapon', attack: 7, defense: 1, hp: 0, mp: 0, rarity: 'uncommon', allowedJobs: ['Monk'], description: 'Heavy iron knuckle guards' },
+  { id: 'chi_gloves', name: 'Chi Gloves', slot: 'weapon', attack: 9, defense: 0, hp: 0, mp: 5, rarity: 'rare', allowedJobs: ['Monk'], description: 'Channel inner energy into strikes' },
+  
+  // Armor
+  { id: 'leather_vest', name: 'Leather Vest', slot: 'armor', attack: 0, defense: 2, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter', 'Monk'], description: 'Basic leather protection' },
+  { id: 'chainmail', name: 'Chainmail', slot: 'armor', attack: 0, defense: 5, hp: 5, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Interlocking metal rings' },
+  { id: 'plate_armor', name: 'Plate Armor', slot: 'armor', attack: 0, defense: 10, hp: 10, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Heavy steel plates' },
+  { id: 'cloth_robe', name: 'Cloth Robe', slot: 'armor', attack: 0, defense: 1, hp: 0, mp: 8, rarity: 'common', allowedJobs: ['Mage'], description: 'Simple enchanted cloth' },
+  { id: 'silk_robe', name: 'Silk Robe', slot: 'armor', attack: 0, defense: 2, hp: 0, mp: 15, rarity: 'uncommon', allowedJobs: ['Mage'], description: 'Woven with magical thread' },
+  { id: 'monk_garb', name: 'Monk Garb', slot: 'armor', attack: 1, defense: 3, hp: 5, mp: 3, rarity: 'uncommon', allowedJobs: ['Monk'], description: 'Traditional fighting attire' },
+  
+  // Helmets
+  { id: 'leather_cap', name: 'Leather Cap', slot: 'helmet', attack: 0, defense: 1, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter', 'Monk'], description: 'Simple head protection' },
+  { id: 'iron_helm', name: 'Iron Helm', slot: 'helmet', attack: 0, defense: 3, hp: 5, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Solid iron helmet' },
+  { id: 'wizard_hat', name: 'Wizard Hat', slot: 'helmet', attack: 0, defense: 0, hp: 0, mp: 10, rarity: 'common', allowedJobs: ['Mage'], description: 'Pointed hat of wisdom' },
+  { id: 'headband', name: 'Focus Headband', slot: 'helmet', attack: 1, defense: 1, hp: 0, mp: 3, rarity: 'common', allowedJobs: ['Monk'], description: 'Aids concentration' },
+  
+  // Accessories
+  { id: 'power_ring', name: 'Power Ring', slot: 'accessory', attack: 2, defense: 0, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter', 'Mage', 'Monk'], description: 'Boosts attack power' },
+  { id: 'guard_ring', name: 'Guard Ring', slot: 'accessory', attack: 0, defense: 2, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter', 'Mage', 'Monk'], description: 'Boosts defense' },
+  { id: 'life_pendant', name: 'Life Pendant', slot: 'accessory', attack: 0, defense: 0, hp: 15, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter', 'Mage', 'Monk'], description: 'Increases vitality' },
+  { id: 'mana_crystal', name: 'Mana Crystal', slot: 'accessory', attack: 0, defense: 0, hp: 0, mp: 15, rarity: 'uncommon', allowedJobs: ['Fighter', 'Mage', 'Monk'], description: 'Stores magical energy' },
+  { id: 'warriors_medal', name: "Warrior's Medal", slot: 'accessory', attack: 4, defense: 2, hp: 5, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Badge of a true warrior' },
+  { id: 'arcane_focus', name: 'Arcane Focus', slot: 'accessory', attack: 2, defense: 0, hp: 0, mp: 20, rarity: 'rare', allowedJobs: ['Mage'], description: 'Amplifies magical power' },
+  { id: 'zen_stone', name: 'Zen Stone', slot: 'accessory', attack: 3, defense: 1, hp: 5, mp: 5, rarity: 'rare', allowedJobs: ['Monk'], description: 'Perfect inner balance' },
+];
+
+// Get equipment by ID
+export function getEquipmentById(id: string): Equipment | undefined {
+  return EQUIPMENT_DATABASE.find(e => e.id === id);
+}
+
+// Check if a character can equip an item
+export function canEquip(player: Player, equipment: Equipment): boolean {
+  return equipment.allowedJobs.includes(player.job);
+}
+
+// Calculate total stats including equipment bonuses
+export function getEffectiveStats(player: Player): { attack: number; defense: number; maxHp: number; maxMp: number } {
+  let attack = player.attack;
+  let defense = player.defense;
+  let maxHp = player.maxHp;
+  let maxMp = player.maxMp;
+  
+  const slots: EquipmentSlot[] = ['weapon', 'armor', 'helmet', 'accessory'];
+  for (const slot of slots) {
+    const item = player.equipment[slot];
+    if (item) {
+      attack += item.attack;
+      defense += item.defense;
+      maxHp += item.hp;
+      maxMp += item.mp;
+    }
+  }
+  
+  return { attack, defense, maxHp, maxMp };
+}
+
+// Get equipment that can drop from monsters (based on rarity chances)
+export function getRandomEquipmentDrop(floor: number): Equipment | null {
+  // 20% chance to drop equipment
+  if (Math.random() > 0.20) return null;
+  
+  // Higher floors = better rarity chances
+  const rarityRoll = Math.random();
+  let targetRarity: 'common' | 'uncommon' | 'rare' | 'epic';
+  
+  if (floor >= 3 && rarityRoll < 0.05) {
+    targetRarity = 'epic';
+  } else if (floor >= 2 && rarityRoll < 0.15) {
+    targetRarity = 'rare';
+  } else if (rarityRoll < 0.40) {
+    targetRarity = 'uncommon';
+  } else {
+    targetRarity = 'common';
+  }
+  
+  // Filter equipment by rarity
+  const possibleDrops = EQUIPMENT_DATABASE.filter(e => e.rarity === targetRarity);
+  if (possibleDrops.length === 0) return null;
+  
+  return possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
+}
+
+// Default empty equipment
+export function createEmptyEquipment(): PlayerEquipment {
+  return {
+    weapon: null,
+    armor: null,
+    helmet: null,
+    accessory: null,
+  };
 }
 
 // Combat abilities for each job
@@ -100,23 +228,48 @@ export interface GameData {
   dir: Direction;
   map: number[][]; // 0 = floor, 1 = wall
   inventory: string[];
+  equipmentInventory: Equipment[]; // Unequipped gear
   gold: number;
   level: number; // Dungeon Floor
 }
 
 // Initial State Factory
 export function createInitialState(): GameData {
+  // Get starting equipment for each character
+  const fighterWeapon = getEquipmentById('rusty_sword') || null;
+  const fighterArmor = getEquipmentById('leather_vest') || null;
+  const mageWeapon = getEquipmentById('wooden_staff') || null;
+  const mageArmor = getEquipmentById('cloth_robe') || null;
+  const monkWeapon = getEquipmentById('brass_knuckles') || null;
+  const monkArmor = getEquipmentById('leather_vest') || null;
+  
   return {
     party: [
-      { id: 'p1', name: 'Bork', job: 'Fighter', hp: 50, maxHp: 50, mp: 0, maxMp: 0, attack: 12, defense: 8, color: '#e74c3c', xp: 0, level: 1 },
-      { id: 'p2', name: 'Pyra', job: 'Mage', hp: 30, maxHp: 30, mp: 40, maxMp: 40, attack: 4, defense: 4, color: '#9b59b6', xp: 0, level: 1 },
-      { id: 'p3', name: 'Milo', job: 'Monk', hp: 45, maxHp: 45, mp: 10, maxMp: 10, attack: 10, defense: 6, color: '#f1c40f', xp: 0, level: 1 },
+      { 
+        id: 'p1', name: 'Bork', job: 'Fighter', 
+        hp: 50, maxHp: 50, mp: 0, maxMp: 0, attack: 12, defense: 8, 
+        color: '#e74c3c', xp: 0, level: 1,
+        equipment: { weapon: fighterWeapon, armor: fighterArmor, helmet: null, accessory: null }
+      },
+      { 
+        id: 'p2', name: 'Pyra', job: 'Mage', 
+        hp: 30, maxHp: 30, mp: 40, maxMp: 40, attack: 4, defense: 4, 
+        color: '#9b59b6', xp: 0, level: 1,
+        equipment: { weapon: mageWeapon, armor: mageArmor, helmet: null, accessory: null }
+      },
+      { 
+        id: 'p3', name: 'Milo', job: 'Monk', 
+        hp: 45, maxHp: 45, mp: 10, maxMp: 10, attack: 10, defense: 6, 
+        color: '#f1c40f', xp: 0, level: 1,
+        equipment: { weapon: monkWeapon, armor: monkArmor, helmet: null, accessory: null }
+      },
     ],
     x: 1,
     y: 1,
     dir: EAST,
     map: generateMaze(32, 32),
     inventory: ['Potion', 'Torch'],
+    equipmentInventory: [], // Start with no extra equipment
     gold: 0,
     level: 1,
   };

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { insertGameStateSchema, gameStates } from "./schema";
+import { insertGameStateSchema, gameStates, type InsertGameState, type GameState } from "./schema";
+
+// Re-export types for client usage
+export type { InsertGameState, GameState };
 
 export const errorSchemas = {
   validation: z.object({
