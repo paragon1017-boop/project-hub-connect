@@ -455,40 +455,123 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
       return decorSeed / 0x7fffffff;
     };
     
-    // Spider webs in corners
-    const webCount = 2 + Math.floor(decorRandom() * 2);
-    for (let i = 0; i < webCount; i++) {
-      const webX = decorRandom() < 0.5 ? 10 + decorRandom() * 40 : w - 50 + decorRandom() * 40;
-      const webY = h / 2 - 30 - decorRandom() * 40;
-      const webSize = 20 + decorRandom() * 25;
-      const webAlpha = 0.3 + decorRandom() * 0.3;
+    // Spider webs in corners (where ceiling meets walls)
+    // Top-left corner web
+    if (decorRandom() > 0.3) {
+      const webSize = 25 + decorRandom() * 20;
+      const webAlpha = 0.35 + decorRandom() * 0.25;
       
-      // Draw web strands
       ctx.strokeStyle = `rgba(200, 200, 210, ${webAlpha})`;
       ctx.lineWidth = 1;
       
-      // Radial strands
-      const strandCount = 6 + Math.floor(decorRandom() * 4);
+      // Corner anchor point
+      const cornerX = 0;
+      const cornerY = Math.floor(h / 2) - 5;
+      
+      // Radial strands from corner
+      const strandCount = 5 + Math.floor(decorRandom() * 3);
       for (let s = 0; s < strandCount; s++) {
-        const angle = (s / strandCount) * Math.PI * 0.7 + Math.PI * 0.15;
+        const angle = (s / strandCount) * Math.PI * 0.5; // Quarter circle from corner
         ctx.beginPath();
-        ctx.moveTo(webX, webY);
-        ctx.lineTo(webX + Math.cos(angle) * webSize, webY + Math.sin(angle) * webSize);
+        ctx.moveTo(cornerX, cornerY);
+        ctx.lineTo(cornerX + Math.cos(angle) * webSize, cornerY - Math.sin(angle) * webSize);
         ctx.stroke();
       }
       
       // Spiral threads
-      ctx.strokeStyle = `rgba(180, 180, 195, ${webAlpha * 0.7})`;
-      for (let ring = 0.3; ring < 1; ring += 0.2) {
+      ctx.strokeStyle = `rgba(180, 180, 195, ${webAlpha * 0.6})`;
+      for (let ring = 0.3; ring < 1; ring += 0.25) {
         ctx.beginPath();
-        for (let a = Math.PI * 0.15; a < Math.PI * 0.85; a += 0.1) {
-          const rx = webX + Math.cos(a) * webSize * ring;
-          const ry = webY + Math.sin(a) * webSize * ring;
-          if (a === Math.PI * 0.15) ctx.moveTo(rx, ry);
+        for (let a = 0; a < Math.PI * 0.55; a += 0.15) {
+          const rx = cornerX + Math.cos(a) * webSize * ring;
+          const ry = cornerY - Math.sin(a) * webSize * ring;
+          if (a === 0) ctx.moveTo(rx, ry);
           else ctx.lineTo(rx, ry);
         }
         ctx.stroke();
       }
+    }
+    
+    // Top-right corner web
+    if (decorRandom() > 0.3) {
+      const webSize = 25 + decorRandom() * 20;
+      const webAlpha = 0.35 + decorRandom() * 0.25;
+      
+      ctx.strokeStyle = `rgba(200, 200, 210, ${webAlpha})`;
+      ctx.lineWidth = 1;
+      
+      const cornerX = w;
+      const cornerY = Math.floor(h / 2) - 5;
+      
+      const strandCount = 5 + Math.floor(decorRandom() * 3);
+      for (let s = 0; s < strandCount; s++) {
+        const angle = Math.PI * 0.5 + (s / strandCount) * Math.PI * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(cornerX, cornerY);
+        ctx.lineTo(cornerX + Math.cos(angle) * webSize, cornerY - Math.sin(angle) * webSize);
+        ctx.stroke();
+      }
+      
+      ctx.strokeStyle = `rgba(180, 180, 195, ${webAlpha * 0.6})`;
+      for (let ring = 0.3; ring < 1; ring += 0.25) {
+        ctx.beginPath();
+        for (let a = Math.PI * 0.5; a < Math.PI * 1.05; a += 0.15) {
+          const rx = cornerX + Math.cos(a) * webSize * ring;
+          const ry = cornerY - Math.sin(a) * webSize * ring;
+          if (a === Math.PI * 0.5) ctx.moveTo(rx, ry);
+          else ctx.lineTo(rx, ry);
+        }
+        ctx.stroke();
+      }
+    }
+    
+    // Wall cracks
+    const crackCount = 3 + Math.floor(decorRandom() * 4);
+    for (let i = 0; i < crackCount; i++) {
+      const crackX = 20 + decorRandom() * (w - 40);
+      const crackY = h / 2 + 10 + decorRandom() * 80;
+      const crackLen = 15 + decorRandom() * 35;
+      const crackAlpha = 0.4 + decorRandom() * 0.3;
+      
+      // Main crack line
+      ctx.strokeStyle = `rgba(20, 18, 15, ${crackAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(crackX, crackY);
+      
+      let cx = crackX;
+      let cy = crackY;
+      const crackDir = decorRandom() < 0.5 ? -1 : 1;
+      
+      for (let c = 0; c < crackLen; c += 4) {
+        cx += (decorRandom() - 0.5) * 6 + crackDir * 2;
+        cy += 3 + decorRandom() * 3;
+        ctx.lineTo(cx, cy);
+        
+        // Branch cracks
+        if (decorRandom() > 0.6) {
+          const branchLen = 5 + decorRandom() * 10;
+          const branchDir = decorRandom() < 0.5 ? -1 : 1;
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + branchDir * branchLen, cy + branchLen * 0.5);
+          ctx.moveTo(cx, cy);
+        }
+      }
+      ctx.stroke();
+      
+      // Crack shadow (depth effect)
+      ctx.strokeStyle = `rgba(0, 0, 0, ${crackAlpha * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(crackX + 1, crackY + 1);
+      cx = crackX + 1;
+      cy = crackY + 1;
+      for (let c = 0; c < crackLen; c += 4) {
+        cx += (decorRandom() - 0.5) * 6 + crackDir * 2;
+        cy += 3 + decorRandom() * 3;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
     }
     
     // Hanging vines from ceiling
