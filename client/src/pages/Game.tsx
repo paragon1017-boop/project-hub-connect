@@ -373,6 +373,14 @@ export default function Game() {
               {/* Monster overlay during combat */}
               {combatState.active && combatState.monster && (
                 <>
+                  {/* Atmospheric overlay for combat - radial vignette that darkens edges */}
+                  <div 
+                    className="absolute inset-0 z-[5] pointer-events-none animate-in fade-in duration-500"
+                    style={{
+                      background: 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
+                    }}
+                  />
+                  
                   {/* Monster sprite centered in dungeon view */}
                   <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
                     <div className="animate-in fade-in zoom-in duration-300 relative">
