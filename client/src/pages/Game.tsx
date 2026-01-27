@@ -62,8 +62,8 @@ export default function Game() {
     const nx = game.x + dx;
     const ny = game.y + dy;
 
-    // Wall collision
-    if (game.map[ny][nx] === 1) {
+    // Wall/door collision (1 = wall, 2 = door)
+    if (game.map[ny][nx] !== 0) {
       log("Blocked.");
       return;
     }
