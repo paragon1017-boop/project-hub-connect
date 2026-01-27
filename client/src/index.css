@@ -67,6 +67,82 @@
   border: 1px solid rgba(255,255,255,0.1);
 }
 
+/* Dungeon stone wall background */
+.dungeon-bg {
+  background-color: #1a1a1f;
+  background-image: 
+    /* Stone block pattern */
+    linear-gradient(90deg, rgba(40,40,50,0.8) 1px, transparent 1px),
+    linear-gradient(rgba(40,40,50,0.8) 1px, transparent 1px),
+    /* Larger stone blocks */
+    linear-gradient(90deg, rgba(30,30,40,0.5) 2px, transparent 2px),
+    linear-gradient(rgba(30,30,40,0.5) 2px, transparent 2px),
+    /* Stone texture noise */
+    radial-gradient(ellipse at 20% 30%, rgba(60,55,50,0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(50,45,40,0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(55,50,45,0.2) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 20%, rgba(45,40,35,0.2) 0%, transparent 40%),
+    /* Base gradient */
+    linear-gradient(180deg, #15151a 0%, #1f1f28 50%, #18181d 100%);
+  background-size: 
+    80px 40px,
+    80px 40px,
+    160px 80px,
+    160px 80px,
+    400px 400px,
+    500px 500px,
+    300px 300px,
+    350px 350px,
+    100% 100%;
+  background-position:
+    0 0,
+    0 0,
+    40px 20px,
+    40px 20px,
+    0 0,
+    100px 100px,
+    200px 50px,
+    50px 150px,
+    0 0;
+}
+
+/* Torch glow effect for corners */
+.torch-glow {
+  position: relative;
+}
+.torch-glow::before,
+.torch-glow::after {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 300px;
+  pointer-events: none;
+  z-index: 1;
+}
+.torch-glow::before {
+  top: 0;
+  left: 0;
+  background: radial-gradient(ellipse at top left, rgba(255,150,50,0.15) 0%, rgba(255,100,30,0.05) 30%, transparent 60%);
+}
+.torch-glow::after {
+  top: 0;
+  right: 0;
+  background: radial-gradient(ellipse at top right, rgba(255,150,50,0.15) 0%, rgba(255,100,30,0.05) 30%, transparent 60%);
+}
+
+/* Vignette overlay for dungeon atmosphere */
+.dungeon-vignette {
+  position: relative;
+}
+.dungeon-vignette::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%);
+  z-index: 0;
+}
+
 /* Glow effects */
 .glow-primary {
   box-shadow: 0 0 20px rgba(200, 140, 50, 0.3), 0 0 40px rgba(200, 140, 50, 0.1);

@@ -507,10 +507,10 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      className="min-h-screen dungeon-bg dungeon-vignette torch-glow p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none">
+      {/* Flickering torch ambient glow */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-amber-500/8 rounded-full blur-[100px] pointer-events-none" style={{ animationDelay: '1s' }} />
       
       <div className="max-w-5xl w-full relative z-10 space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
