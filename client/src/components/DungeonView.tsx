@@ -699,99 +699,144 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
       ctx.stroke();
     }
     
-    // Wall-mounted candles and lanterns (sparse)
+    // Wall-mounted candles and lanterns (sparse, positioned high near ceiling)
     // Only 0-1 light source per view
     if (decorRandom() > 0.5) {
       const lightX = 60 + decorRandom() * (w - 120);
-      const lightY = h / 2 + 15 + decorRandom() * 30;
+      const lightY = h / 2 + 5 + decorRandom() * 15; // Higher on wall, near ceiling line
       const isLantern = decorRandom() > 0.6;
       
       if (isLantern) {
-        // Wall lantern
+        // Wall lantern with iron hook
         const lanternW = 8;
         const lanternH = 12;
+        const hookY = lightY - lanternH - 8;
         
-        // Metal bracket
+        // Iron wall hook/bracket
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(lightX - 1, hookY, 2, 3); // Wall mount
         ctx.fillStyle = '#3a3a3a';
-        ctx.fillRect(lightX - 1, lightY - lanternH - 6, 2, 8);
-        ctx.fillRect(lightX - 4, lightY - lanternH - 6, 8, 2);
+        ctx.fillRect(lightX - 1, hookY + 2, 8, 2); // Horizontal arm
+        ctx.fillRect(lightX + 5, hookY + 2, 2, 6); // Vertical drop
+        
+        // Hook curl
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(lightX + 4, hookY + 10, 3, 0, Math.PI);
+        ctx.stroke();
+        
+        // Lantern chain
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(lightX + 3, hookY + 10, 2, 4);
         
         // Lantern frame (dark metal)
         ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(lightX - lanternW/2, lightY - lanternH, lanternW, lanternH);
+        ctx.fillRect(lightX - lanternW/2 + 3, lightY - lanternH + 2, lanternW, lanternH);
         
         // Glass panels (amber glow)
         ctx.fillStyle = 'rgba(255, 180, 80, 0.8)';
-        ctx.fillRect(lightX - lanternW/2 + 1, lightY - lanternH + 2, lanternW - 2, lanternH - 4);
+        ctx.fillRect(lightX - lanternW/2 + 4, lightY - lanternH + 4, lanternW - 2, lanternH - 4);
         
         // Flame inside
         ctx.fillStyle = 'rgba(255, 220, 100, 0.9)';
         ctx.beginPath();
-        ctx.ellipse(lightX, lightY - lanternH/2, 2, 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(lightX + 3, lightY - lanternH/2 + 2, 2, 3, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Lantern top
+        // Lantern top cap
         ctx.fillStyle = '#3a3a3a';
-        ctx.fillRect(lightX - lanternW/2 - 1, lightY - lanternH - 2, lanternW + 2, 3);
-        ctx.fillRect(lightX - lanternW/2, lightY - 1, lanternW, 2);
+        ctx.fillRect(lightX - lanternW/2 + 2, lightY - lanternH, lanternW + 2, 3);
+        ctx.fillRect(lightX - lanternW/2 + 3, lightY + 1, lanternW, 2);
         
         // Glow effect
-        const glowGrad = ctx.createRadialGradient(lightX, lightY - lanternH/2, 0, lightX, lightY - lanternH/2, 35);
+        const glowGrad = ctx.createRadialGradient(lightX + 3, lightY - lanternH/2 + 2, 0, lightX + 3, lightY - lanternH/2 + 2, 35);
         glowGrad.addColorStop(0, 'rgba(255, 180, 80, 0.25)');
         glowGrad.addColorStop(1, 'rgba(255, 150, 50, 0)');
         ctx.fillStyle = glowGrad;
         ctx.fillRect(lightX - 40, lightY - lanternH - 30, 80, 70);
       } else {
-        // Wall candle with holder
+        // Wall candle on wooden shelf
         const candleH = 8 + decorRandom() * 4;
+        const shelfY = lightY + 2;
         
-        // Metal candle holder/sconce
-        ctx.fillStyle = '#4a4a4a';
-        ctx.fillRect(lightX - 1, lightY - 3, 2, 5);
-        ctx.fillRect(lightX - 4, lightY, 8, 3);
+        // Wooden shelf bracket (triangle support)
+        ctx.fillStyle = '#4a3825';
+        ctx.beginPath();
+        ctx.moveTo(lightX - 10, shelfY + 3);
+        ctx.lineTo(lightX - 10, shelfY - 8);
+        ctx.lineTo(lightX - 2, shelfY + 3);
+        ctx.closePath();
+        ctx.fill();
         
-        // Candle base plate
+        // Wooden shelf top
+        ctx.fillStyle = '#5a4830';
+        ctx.fillRect(lightX - 12, shelfY, 18, 3);
+        
+        // Shelf edge highlight
+        ctx.fillStyle = '#6a5840';
+        ctx.fillRect(lightX - 12, shelfY, 18, 1);
+        
+        // Shelf shadow underneath
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(lightX - 11, shelfY + 3, 16, 2);
+        
+        // Wood grain on shelf
+        ctx.strokeStyle = 'rgba(60, 40, 25, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(lightX - 10, shelfY + 1);
+        ctx.lineTo(lightX + 4, shelfY + 1);
+        ctx.stroke();
+        
+        // Candle base plate on shelf
         ctx.fillStyle = '#3a3530';
         ctx.beginPath();
-        ctx.ellipse(lightX, lightY, 5, 2, 0, 0, Math.PI * 2);
+        ctx.ellipse(lightX, shelfY - 1, 4, 1.5, 0, 0, Math.PI * 2);
         ctx.fill();
         
         // Candle body (cream/white)
         ctx.fillStyle = '#e8e0d0';
-        ctx.fillRect(lightX - 2, lightY - candleH, 4, candleH);
+        ctx.fillRect(lightX - 2, shelfY - 1 - candleH, 4, candleH);
         
         // Candle shading
         ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.fillRect(lightX + 1, lightY - candleH, 1, candleH);
+        ctx.fillRect(lightX + 1, shelfY - 1 - candleH, 1, candleH);
         
         // Wick
         ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(lightX, lightY - candleH - 2, 1, 3);
+        ctx.fillRect(lightX, shelfY - 1 - candleH - 2, 1, 3);
         
         // Flame
         ctx.fillStyle = 'rgba(255, 200, 80, 0.95)';
         ctx.beginPath();
-        ctx.ellipse(lightX, lightY - candleH - 4, 2, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(lightX, shelfY - 1 - candleH - 4, 2, 4, 0, 0, Math.PI * 2);
         ctx.fill();
         
         // Flame core (bright)
         ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
         ctx.beginPath();
-        ctx.ellipse(lightX, lightY - candleH - 3, 1, 2, 0, 0, Math.PI * 2);
+        ctx.ellipse(lightX, shelfY - 1 - candleH - 3, 1, 2, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Wax drips
+        // Wax drips on candle
         if (decorRandom() > 0.4) {
           ctx.fillStyle = 'rgba(220, 210, 190, 0.8)';
-          ctx.fillRect(lightX - 2, lightY - candleH + 2, 1, 3 + decorRandom() * 3);
+          ctx.fillRect(lightX - 2, shelfY - candleH + 1, 1, 3 + decorRandom() * 3);
+        }
+        
+        // Wax drips on shelf
+        if (decorRandom() > 0.5) {
+          ctx.fillStyle = 'rgba(210, 200, 180, 0.6)';
+          ctx.fillRect(lightX + 2, shelfY - 1, 2, 2);
         }
         
         // Glow effect
-        const glowGrad = ctx.createRadialGradient(lightX, lightY - candleH - 4, 0, lightX, lightY - candleH - 4, 25);
+        const glowGrad = ctx.createRadialGradient(lightX, shelfY - candleH - 5, 0, lightX, shelfY - candleH - 5, 25);
         glowGrad.addColorStop(0, 'rgba(255, 180, 80, 0.2)');
         glowGrad.addColorStop(1, 'rgba(255, 150, 50, 0)');
         ctx.fillStyle = glowGrad;
-        ctx.fillRect(lightX - 30, lightY - candleH - 25, 60, 50);
+        ctx.fillRect(lightX - 30, shelfY - candleH - 30, 60, 55);
       }
     }
   };
