@@ -21,6 +21,27 @@ export interface Entity {
 
 export interface Player extends Entity {
   job: string;
+  xp: number;
+  level: number;
+}
+
+// XP required for each level (exponential growth)
+export function xpForLevel(level: number): number {
+  return Math.floor(100 * Math.pow(1.5, level - 1));
+}
+
+// Calculate stat bonuses per level
+export function getLevelUpStats(job: string): { hp: number, mp: number, attack: number, defense: number } {
+  switch (job) {
+    case 'Fighter':
+      return { hp: 10, mp: 0, attack: 3, defense: 2 };
+    case 'Mage':
+      return { hp: 4, mp: 8, attack: 1, defense: 1 };
+    case 'Monk':
+      return { hp: 8, mp: 2, attack: 2, defense: 1 };
+    default:
+      return { hp: 6, mp: 2, attack: 2, defense: 1 };
+  }
 }
 
 export interface Monster extends Entity {
@@ -48,9 +69,9 @@ export interface GameData {
 export function createInitialState(): GameData {
   return {
     party: [
-      { id: 'p1', name: 'Bork', job: 'Fighter', hp: 50, maxHp: 50, mp: 0, maxMp: 0, attack: 12, defense: 8, color: '#e74c3c' },
-      { id: 'p2', name: 'Pyra', job: 'Mage', hp: 30, maxHp: 30, mp: 40, maxMp: 40, attack: 4, defense: 4, color: '#9b59b6' },
-      { id: 'p3', name: 'Milo', job: 'Monk', hp: 45, maxHp: 45, mp: 10, maxMp: 10, attack: 10, defense: 6, color: '#f1c40f' },
+      { id: 'p1', name: 'Bork', job: 'Fighter', hp: 50, maxHp: 50, mp: 0, maxMp: 0, attack: 12, defense: 8, color: '#e74c3c', xp: 0, level: 1 },
+      { id: 'p2', name: 'Pyra', job: 'Mage', hp: 30, maxHp: 30, mp: 40, maxMp: 40, attack: 4, defense: 4, color: '#9b59b6', xp: 0, level: 1 },
+      { id: 'p3', name: 'Milo', job: 'Monk', hp: 45, maxHp: 45, mp: 10, maxMp: 10, attack: 10, defense: 6, color: '#f1c40f', xp: 0, level: 1 },
     ],
     x: 1,
     y: 1,

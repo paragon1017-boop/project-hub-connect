@@ -7,7 +7,8 @@ import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
 import { 
   GameData, createInitialState, 
   NORTH, SOUTH, EAST, WEST, 
-  getRandomMonster, Monster 
+  getRandomMonster, Monster,
+  xpForLevel, getLevelUpStats, Player
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
 import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp } from "lucide-react";
@@ -142,6 +143,38 @@ export default function Game() {
     });
   };
 
+  const awardXP = useCallback((xpAmount: number) => {
+    if (!game) return;
+    
+    const newParty = game.party.map(char => {
+      const newXp = char.xp + xpAmount;
+      const xpNeeded = xpForLevel(char.level + 1);
+      
+      // Check for level up
+      if (newXp >= xpNeeded) {
+        const stats = getLevelUpStats(char.job);
+        const newLevel = char.level + 1;
+        log(`${char.name} leveled up to ${newLevel}!`);
+        
+        return {
+          ...char,
+          level: newLevel,
+          xp: newXp - xpNeeded,
+          maxHp: char.maxHp + stats.hp,
+          hp: Math.min(char.hp + stats.hp, char.maxHp + stats.hp), // Heal on level up
+          maxMp: char.maxMp + stats.mp,
+          mp: Math.min(char.mp + stats.mp, char.maxMp + stats.mp),
+          attack: char.attack + stats.attack,
+          defense: char.defense + stats.defense,
+        };
+      }
+      
+      return { ...char, xp: newXp };
+    });
+    
+    setGame(prev => prev ? ({ ...prev, party: newParty }) : null);
+  }, [game, log]);
+
   const handleAttack = () => {
     if (!combatState.monster || !game) return;
     
@@ -154,9 +187,13 @@ export default function Game() {
     log(`You hit ${combatState.monster.name} for ${damage} dmg!`);
 
     if (newMonsterHp <= 0) {
-      // Victory
-      log(`Defeated ${combatState.monster.name}! +${combatState.monster.xpValue} XP`);
+      // Victory - award XP to all party members
+      const xpGained = combatState.monster.xpValue;
+      log(`Defeated ${combatState.monster.name}! +${xpGained} XP`);
       setCombatState({ active: false, turn: 0 });
+      
+      // Award XP after a brief delay so victory message shows first
+      setTimeout(() => awardXP(xpGained), 100);
       return;
     }
 
@@ -308,11 +345,12 @@ export default function Game() {
               <div key={char.id} className="bg-black/40 p-3 border border-border/50">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-pixel text-xs text-primary">{char.name}</span>
-                  <span className="font-retro text-muted-foreground text-sm">{char.job}</span>
+                  <span className="font-retro text-muted-foreground text-sm">Lv.{char.level} {char.job}</span>
                 </div>
                 <div className="space-y-1">
                   <StatBar label="HP" current={char.hp} max={char.maxHp} color={char.color} />
                   <StatBar label="MP" current={char.mp} max={char.maxMp} color="#3498db" />
+                  <StatBar label="XP" current={char.xp} max={xpForLevel(char.level + 1)} color="#f39c12" />
                 </div>
               </div>
             ))}
