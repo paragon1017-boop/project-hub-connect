@@ -41,10 +41,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Game Engine
 - **Rendering**: Canvas-based raycasting for first-person dungeon view
-- **Map System**: 2D grid-based maps with wall/floor tiles
-- **Combat**: Turn-based system with party members and abilities
+- **Map System**: 2D grid-based procedural maps with wall/floor tiles and doors
+- **Combat**: Turn-based system with party members and job-specific abilities
 - **Character Classes**: Fighter, Mage, Monk with unique abilities
 - **Movement**: Cardinal directions (WASD/Arrow keys) with 90-degree turns
+- **Mini Map**: Toggle with M key, shows 15x15 grid with player direction
+- **Equipment System**: 4 slots (weapon, armor, helmet, accessory) with job restrictions and rarity tiers
+  - Equipment drops from monsters with rarity based on dungeon floor
+  - Stats affect ATK/DEF/HP/MP with bonuses applied to combat and resource pools
+  - Toggle equipment panel with E key
 
 ### Project Structure
 ```
