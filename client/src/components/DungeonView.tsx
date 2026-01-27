@@ -54,12 +54,56 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Draw Ceiling (dark stone)
-    const ceilingGradient = ctx.createLinearGradient(0, 0, 0, h / 2);
-    ceilingGradient.addColorStop(0, "#0a0806");
-    ceilingGradient.addColorStop(1, "#1a1510");
-    ctx.fillStyle = ceilingGradient;
-    ctx.fillRect(0, 0, w, h / 2);
+    // Draw Ceiling with perspective texture (matching floor but darker with moss)
+    const ceilingTex = texturesRef.current.floor; // Use same texture as floor
+    if (ceilingTex) {
+      const texW = ceilingTex.width;
+      const texH = ceilingTex.height;
+      const texScale = 128;
+      
+      // Ceiling casting - mirror of floor casting
+      for (let y = 0; y < Math.floor(h / 2); y++) {
+        const p = Math.floor(h / 2) - y;
+        const rowDistance = (h * 0.5) / p;
+        
+        const ceilStepX = rowDistance * (planeX * 2) / w;
+        const ceilStepY = rowDistance * (planeY * 2) / w;
+        
+        let ceilX = posX + rowDistance * (dirX - planeX);
+        let ceilY = posY + rowDistance * (dirY - planeY);
+        
+        for (let x = 0; x < w; x += 2) {
+          const tx = Math.floor(Math.abs(ceilX * texScale) % texW);
+          const ty = Math.floor(Math.abs(ceilY * texScale) % texH);
+          
+          ctx.drawImage(
+            ceilingTex,
+            tx, ty, 2, 2,
+            x, y, 2, 1
+          );
+          
+          ceilX += ceilStepX * 2;
+          ceilY += ceilStepY * 2;
+        }
+      }
+      
+      // Apply dark mossy overlay to ceiling
+      for (let y = 0; y < Math.floor(h / 2); y += 2) {
+        const p = Math.floor(h / 2) - y;
+        const rowDistance = (h * 0.5) / p;
+        const darkness = Math.min(0.75, 0.4 + rowDistance / 15);
+        // Dark green moss tint
+        ctx.fillStyle = `rgba(5, 12, 8, ${darkness})`;
+        ctx.fillRect(0, y, w, 2);
+      }
+    } else {
+      // Fallback gradient ceiling
+      const ceilingGradient = ctx.createLinearGradient(0, 0, 0, h / 2);
+      ceilingGradient.addColorStop(0, "#0a0806");
+      ceilingGradient.addColorStop(1, "#1a1510");
+      ctx.fillStyle = ceilingGradient;
+      ctx.fillRect(0, 0, w, h / 2);
+    }
 
     // Draw Floor with perspective floor casting (cobblestone walkway effect)
     const floorTex = texturesRef.current.floor;
