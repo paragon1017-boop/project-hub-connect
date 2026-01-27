@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGameState, useSaveGame } from "@/hooks/use-game";
 import { DungeonView } from "@/components/DungeonView";
+import { TransparentMonster } from "@/components/TransparentMonster";
 import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
 import { 
   GameData, createInitialState, 
@@ -225,28 +226,13 @@ export default function Game() {
                 <>
                   {/* Monster sprite centered in dungeon view */}
                   <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                    <div className="animate-in fade-in zoom-in duration-300 relative">
+                    <div className="animate-in fade-in zoom-in duration-300">
                       {combatState.monster.image ? (
-                        <>
-                          {/* Dark vignette backdrop to blend white edges */}
-                          <div 
-                            className="absolute inset-0 rounded-full"
-                            style={{
-                              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 40%, transparent 70%)',
-                              transform: 'scale(1.3)',
-                            }}
-                          />
-                          <img 
-                            src={combatState.monster.image} 
-                            alt={combatState.monster.name} 
-                            className="w-56 h-56 object-contain relative z-10" 
-                            style={{ 
-                              imageRendering: 'auto',
-                              mixBlendMode: 'multiply',
-                              filter: 'contrast(1.15) saturate(1.3) brightness(0.95)'
-                            }}
-                          />
-                        </>
+                        <TransparentMonster 
+                          src={combatState.monster.image} 
+                          alt={combatState.monster.name} 
+                          className="w-56 h-56 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]" 
+                        />
                       ) : (
                         <Skull className="w-32 h-32 text-red-500 drop-shadow-lg" />
                       )}
