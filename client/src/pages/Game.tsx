@@ -236,42 +236,16 @@ export default function Game() {
       
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
         
-        {/* LEFT COLUMN: Controls & Info */}
+        {/* LEFT COLUMN: Commands */}
         <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
           <RetroCard title="COMMANDS" className="h-full">
-            <div className="grid grid-cols-2 gap-2 mb-6">
+            <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "SAVING..." : "SAVE"} <Save className="w-3 h-3 ml-2 inline" />
               </RetroButton>
               <RetroButton onClick={() => logout()} variant="danger">
                 EXIT <LogOut className="w-3 h-3 ml-2 inline" />
               </RetroButton>
-            </div>
-
-            <div className="bg-black/40 p-4 rounded border border-border">
-              <h3 className="font-pixel text-xs mb-2 text-muted-foreground">CONTROLS</h3>
-              <div className="grid grid-cols-3 gap-1 place-items-center">
-                <div />
-                <RetroButton onClick={() => {
-                  if (game.dir === NORTH) move(0, -1);
-                  if (game.dir === SOUTH) move(0, 1);
-                  if (game.dir === EAST) move(1, 0);
-                  if (game.dir === WEST) move(-1, 0);
-                }} className="w-10 h-10 p-0 flex items-center justify-center">
-                  <ArrowUp className="w-4 h-4" />
-                </RetroButton>
-                <div />
-                
-                <RetroButton onClick={() => rotate('left')} className="w-10 h-10 p-0 flex items-center justify-center">
-                  <RotateCcw className="w-4 h-4" />
-                </RetroButton>
-                <div className="w-10 h-10 flex items-center justify-center text-xs text-muted-foreground font-pixel">
-                  WASD
-                </div>
-                <RetroButton onClick={() => rotate('right')} className="w-10 h-10 p-0 flex items-center justify-center">
-                  <RotateCw className="w-4 h-4" />
-                </RetroButton>
-              </div>
             </div>
           </RetroCard>
         </div>
@@ -334,6 +308,32 @@ export default function Game() {
                   {i === 0 ? '> ' : '  '}{msg}
                 </div>
               ))}
+            </div>
+            
+            {/* Movement Controls */}
+            <div className="bg-black/60 p-4 border-t-2 border-primary/20 flex justify-center">
+              <div className="grid grid-cols-3 gap-2 place-items-center">
+                <div />
+                <RetroButton onClick={() => {
+                  if (game.dir === NORTH) move(0, -1);
+                  if (game.dir === SOUTH) move(0, 1);
+                  if (game.dir === EAST) move(1, 0);
+                  if (game.dir === WEST) move(-1, 0);
+                }} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-forward">
+                  <ArrowUp className="w-5 h-5" />
+                </RetroButton>
+                <div />
+                
+                <RetroButton onClick={() => rotate('left')} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-rotate-left">
+                  <RotateCcw className="w-5 h-5" />
+                </RetroButton>
+                <div className="w-12 h-12 flex items-center justify-center text-xs text-muted-foreground font-pixel">
+                  WASD
+                </div>
+                <RetroButton onClick={() => rotate('right')} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-rotate-right">
+                  <RotateCw className="w-5 h-5" />
+                </RetroButton>
+              </div>
             </div>
           </RetroCard>
         </div>
