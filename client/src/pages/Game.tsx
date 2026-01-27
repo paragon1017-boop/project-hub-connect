@@ -518,9 +518,9 @@ export default function Game() {
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT COLUMN: Commands */}
-        <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
-          <RetroCard title="COMMANDS" className="h-full">
+        {/* LEFT COLUMN: Commands & Equipment */}
+        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1">
+          <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? "SAVING..." : "SAVE"} <Save className="w-3 h-3 ml-2 inline" />
@@ -529,7 +529,137 @@ export default function Game() {
                 EXIT <LogOut className="w-3 h-3 ml-2 inline" />
               </RetroButton>
             </div>
+            
+            {/* Equipment Toggle Button */}
+            <RetroButton 
+              onClick={() => setShowEquipment(prev => !prev)}
+              className="w-full mt-2"
+              variant={showEquipment ? "default" : "ghost"}
+              data-testid="button-equipment"
+            >
+              <Sword className="w-4 h-4 mr-2" />
+              EQUIPMENT (E)
+            </RetroButton>
           </RetroCard>
+          
+          {/* Equipment Panel - Compact */}
+          {showEquipment && (
+            <RetroCard title="EQUIPMENT">
+              {/* Character Selection */}
+              <div className="flex gap-1 mb-2">
+                {game.party.map((char, idx) => (
+                  <button
+                    key={char.id}
+                    onClick={() => setSelectedCharForEquip(idx)}
+                    className={`flex-1 px-1 py-0.5 text-[10px] font-pixel rounded border transition-colors ${
+                      selectedCharForEquip === idx 
+                        ? 'border-primary bg-primary/20 text-primary' 
+                        : 'border-border bg-black/40 text-muted-foreground hover:bg-black/60'
+                    }`}
+                    data-testid={`button-select-char-${idx}`}
+                  >
+                    {char.name}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Selected Character's Equipment Slots */}
+              {game.party[selectedCharForEquip] && (
+                <div className="space-y-1">
+                  {(['weapon', 'armor', 'helmet', 'accessory'] as const).map(slot => {
+                    const item = game.party[selectedCharForEquip].equipment[slot];
+                    return (
+                      <div 
+                        key={slot} 
+                        className="flex items-center justify-between bg-black/40 px-1.5 py-1 rounded border border-border/50"
+                      >
+                        <div className="flex-1 truncate">
+                          <span className="text-[10px] font-retro text-muted-foreground capitalize">{slot}:</span>
+                          {item ? (
+                            <span className={`ml-1 text-[10px] font-pixel ${
+                              item.rarity === 'rare' ? 'text-blue-400' : 
+                              item.rarity === 'uncommon' ? 'text-green-400' : 
+                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
+                            }`}>
+                              {item.name}
+                            </span>
+                          ) : (
+                            <span className="ml-1 text-[10px] text-muted-foreground italic">-</span>
+                          )}
+                        </div>
+                        {item && (
+                          <button
+                            onClick={() => unequipItem(selectedCharForEquip, slot)}
+                            className="text-[10px] px-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded ml-1"
+                            data-testid={`button-unequip-${slot}`}
+                          >
+                            X
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show effective stats - inline */}
+                  <div className="flex gap-2 text-[10px] font-retro text-muted-foreground pt-1">
+                    <span>ATK:{getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
+                    <span>DEF:{getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
+                    <span>HP:{getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
+                    <span>MP:{getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Equipment Inventory - Compact */}
+              <div className="mt-2 pt-2 border-t border-border">
+                <div className="text-[10px] font-pixel text-muted-foreground mb-1">
+                  Bag ({game.equipmentInventory.length})
+                </div>
+                {game.equipmentInventory.length === 0 ? (
+                  <div className="text-[10px] text-muted-foreground italic text-center py-1">
+                    Empty
+                  </div>
+                ) : (
+                  <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                    {game.equipmentInventory.map((item, idx) => {
+                      const char = game.party[selectedCharForEquip];
+                      const canEquipThis = canEquip(char, item);
+                      return (
+                        <div 
+                          key={`${item.id}-${idx}`}
+                          className={`flex items-center justify-between bg-black/40 px-1.5 py-0.5 rounded border border-border/50 ${
+                            !canEquipThis ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <div className="flex-1 truncate">
+                            <span className={`text-[10px] font-pixel ${
+                              item.rarity === 'rare' ? 'text-blue-400' : 
+                              item.rarity === 'uncommon' ? 'text-green-400' : 
+                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
+                            }`}>
+                              {item.name}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => equipItem(selectedCharForEquip, item)}
+                            disabled={!canEquipThis}
+                            className={`text-[10px] px-1.5 py-0.5 rounded ml-1 ${
+                              canEquipThis 
+                                ? 'bg-primary/20 text-primary hover:bg-primary/40' 
+                                : 'bg-muted text-muted-foreground cursor-not-allowed'
+                            }`}
+                            data-testid={`button-equip-${item.id}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </RetroCard>
+          )}
         </div>
 
         {/* CENTER COLUMN: Viewport */}
@@ -755,137 +885,7 @@ export default function Game() {
                 <span>{game.gold}</span>
               </div>
             </div>
-            
-            {/* Equipment Toggle Button */}
-            <RetroButton 
-              onClick={() => setShowEquipment(prev => !prev)}
-              className="w-full mt-2"
-              variant={showEquipment ? "default" : "ghost"}
-              data-testid="button-equipment"
-            >
-              <Sword className="w-4 h-4 mr-2" />
-              EQUIPMENT (E)
-            </RetroButton>
           </RetroCard>
-          
-          {/* Equipment Panel - Compact */}
-          {showEquipment && (
-            <RetroCard title="EQUIPMENT" className="mt-2">
-              {/* Character Selection */}
-              <div className="flex gap-1 mb-2">
-                {game.party.map((char, idx) => (
-                  <button
-                    key={char.id}
-                    onClick={() => setSelectedCharForEquip(idx)}
-                    className={`flex-1 px-1 py-0.5 text-[10px] font-pixel rounded border transition-colors ${
-                      selectedCharForEquip === idx 
-                        ? 'border-primary bg-primary/20 text-primary' 
-                        : 'border-border bg-black/40 text-muted-foreground hover:bg-black/60'
-                    }`}
-                    data-testid={`button-select-char-${idx}`}
-                  >
-                    {char.name}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Selected Character's Equipment Slots */}
-              {game.party[selectedCharForEquip] && (
-                <div className="space-y-1">
-                  {(['weapon', 'armor', 'helmet', 'accessory'] as const).map(slot => {
-                    const item = game.party[selectedCharForEquip].equipment[slot];
-                    return (
-                      <div 
-                        key={slot} 
-                        className="flex items-center justify-between bg-black/40 px-1.5 py-1 rounded border border-border/50"
-                      >
-                        <div className="flex-1 truncate">
-                          <span className="text-[10px] font-retro text-muted-foreground capitalize">{slot}:</span>
-                          {item ? (
-                            <span className={`ml-1 text-[10px] font-pixel ${
-                              item.rarity === 'rare' ? 'text-blue-400' : 
-                              item.rarity === 'uncommon' ? 'text-green-400' : 
-                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
-                            }`}>
-                              {item.name}
-                            </span>
-                          ) : (
-                            <span className="ml-1 text-[10px] text-muted-foreground italic">-</span>
-                          )}
-                        </div>
-                        {item && (
-                          <button
-                            onClick={() => unequipItem(selectedCharForEquip, slot)}
-                            className="text-[10px] px-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded ml-1"
-                            data-testid={`button-unequip-${slot}`}
-                          >
-                            X
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Show effective stats - inline */}
-                  <div className="flex gap-2 text-[10px] font-retro text-muted-foreground pt-1">
-                    <span>ATK:{getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
-                    <span>DEF:{getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
-                    <span>HP:{getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
-                    <span>MP:{getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Equipment Inventory - Compact */}
-              <div className="mt-2 pt-2 border-t border-border">
-                <div className="text-[10px] font-pixel text-muted-foreground mb-1">
-                  Bag ({game.equipmentInventory.length})
-                </div>
-                {game.equipmentInventory.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground italic text-center py-1">
-                    Empty
-                  </div>
-                ) : (
-                  <div className="space-y-0.5 max-h-24 overflow-y-auto">
-                    {game.equipmentInventory.map((item, idx) => {
-                      const char = game.party[selectedCharForEquip];
-                      const canEquipThis = canEquip(char, item);
-                      return (
-                        <div 
-                          key={`${item.id}-${idx}`}
-                          className={`flex items-center justify-between bg-black/40 px-1.5 py-0.5 rounded border border-border/50 ${
-                            !canEquipThis ? 'opacity-50' : ''
-                          }`}
-                        >
-                          <div className="flex-1 truncate">
-                            <span className={`text-[10px] font-pixel ${
-                              item.rarity === 'rare' ? 'text-blue-400' : 
-                              item.rarity === 'uncommon' ? 'text-green-400' : 
-                              item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
-                            }`}>
-                              {item.name}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => equipItem(selectedCharForEquip, item)}
-                            disabled={!canEquipThis}
-                            className={`text-[10px] px-1.5 py-0.5 rounded ml-1 ${
-                              canEquipThis 
-                                ? 'bg-primary/20 text-primary hover:bg-primary/40' 
-                                : 'bg-muted text-muted-foreground cursor-not-allowed'
-                            }`}
-                            data-testid={`button-equip-${item.id}`}
-                          >
-                            +
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </RetroCard>
-          )}
         </div>
         </div>
       </div>
