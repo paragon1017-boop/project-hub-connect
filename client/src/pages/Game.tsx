@@ -29,6 +29,7 @@ export default function Game() {
     currentCharIndex: number,
     defending: boolean 
   }>({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, defending: false });
+  const [showMiniMap, setShowMiniMap] = useState(true);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Restore focus after combat ends
@@ -137,6 +138,9 @@ export default function Game() {
 
   useKey('a', () => rotate('left'), {}, [game]);
   useKey('d', () => rotate('right'), {}, [game]);
+  
+  // Toggle mini map
+  useKey('m', () => setShowMiniMap(prev => !prev), {}, []);
 
   // Combat keyboard shortcuts
   useKey(' ', (e) => {
@@ -403,7 +407,8 @@ export default function Game() {
               {/* Always show dungeon view as background */}
               <DungeonView gameData={game} className="w-full h-full" />
               
-              {/* Mini Map in top left */}
+              {/* Mini Map in top left (toggle with M key) */}
+              {showMiniMap && (
               <div className="absolute top-2 left-2 z-30 bg-black/70 border border-primary/50 rounded p-1">
                 <div className="grid gap-[1px]" style={{ 
                   gridTemplateColumns: `repeat(${Math.min(game.map[0]?.length || 15, 15)}, 6px)` 
@@ -434,6 +439,7 @@ export default function Game() {
                   )}
                 </div>
               </div>
+              )}
               
               {/* Monster overlay during combat */}
               {combatState.active && combatState.monsters.length > 0 && (
