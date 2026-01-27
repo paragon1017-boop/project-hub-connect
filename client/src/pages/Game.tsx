@@ -508,25 +508,28 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className="min-h-screen p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none"
-      style={{
-        backgroundImage: `url(${dungeonWallBg})`,
-        backgroundSize: '400px',
-        backgroundRepeat: 'repeat',
-        backgroundPosition: 'center'
-      }}>
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+      className="min-h-screen p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none bg-black">
+      {/* Stone wall background with grayscale filter */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${dungeonWallBg})`,
+          backgroundSize: '400px',
+          backgroundRepeat: 'repeat',
+          backgroundPosition: 'center',
+          filter: 'grayscale(100%) brightness(0.35) contrast(1.1)'
+        }} 
+      />
       {/* Vignette effect */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)'
+        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)'
       }} />
       {/* Torch glow effects */}
       <div className="absolute top-0 left-0 w-64 h-80 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top left, rgba(255,150,50,0.25) 0%, transparent 60%)'
+        background: 'radial-gradient(ellipse at top left, rgba(255,150,50,0.2) 0%, transparent 60%)'
       }} />
       <div className="absolute top-0 right-0 w-64 h-80 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top right, rgba(255,150,50,0.25) 0%, transparent 60%)'
+        background: 'radial-gradient(ellipse at top right, rgba(255,150,50,0.2) 0%, transparent 60%)'
       }} />
       
       <div className="max-w-5xl w-full relative z-10 space-y-4">
