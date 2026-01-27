@@ -128,13 +128,14 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
         ctx.fillStyle = bottomColor;
         ctx.fillRect(0, beamY + beamHeight/2 - 2, w, 2);
         
-        // Add vertical wood grain lines for texture
+        // Add horizontal wood grain lines for texture (running the long way)
         ctx.strokeStyle = 'rgba(30, 20, 10, 0.3)';
         ctx.lineWidth = 1;
-        for (let gx = 0; gx < w; gx += 8 + (i % 3) * 2) {
+        const grainSpacing = Math.max(2, Math.floor(beamHeight / 4));
+        for (let gy = beamY - beamHeight/2 + grainSpacing; gy < beamY + beamHeight/2; gy += grainSpacing) {
           ctx.beginPath();
-          ctx.moveTo(gx, beamY - beamHeight/2);
-          ctx.lineTo(gx, beamY + beamHeight/2);
+          ctx.moveTo(0, gy);
+          ctx.lineTo(w, gy);
           ctx.stroke();
         }
         
