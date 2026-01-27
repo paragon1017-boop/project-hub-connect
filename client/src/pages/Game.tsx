@@ -381,24 +381,24 @@ export default function Game() {
                     }}
                   />
                   
-                  {/* Monster sprite centered in dungeon view */}
-                  <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                  {/* Monster sprite positioned lower to appear grounded */}
+                  <div className="absolute inset-0 z-10 flex items-end justify-center pointer-events-none pb-28">
                     <div className="animate-in fade-in zoom-in duration-300 relative">
                       {combatState.monster.image ? (
                         <>
                           <TransparentMonster 
                             src={combatState.monster.image} 
                             alt={combatState.monster.name} 
-                            className="w-56 h-56 object-contain drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]" 
+                            className="w-72 h-72 object-contain drop-shadow-[0_0_25px_rgba(0,0,0,0.9)]" 
                           />
                           {/* Ground shadow beneath monster */}
                           <div 
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-6 rounded-[50%] bg-black/50 blur-sm"
-                            style={{ transform: 'translateX(-50%) translateY(8px)' }}
+                            className="absolute bottom-0 left-1/2 w-52 h-8 rounded-[50%] bg-black/60 blur-md"
+                            style={{ transform: 'translateX(-50%) translateY(12px)' }}
                           />
                         </>
                       ) : (
-                        <Skull className="w-32 h-32 text-red-500 drop-shadow-lg" />
+                        <Skull className="w-40 h-40 text-red-500 drop-shadow-lg" />
                       )}
                     </div>
                   </div>
