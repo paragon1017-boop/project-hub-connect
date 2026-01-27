@@ -29,7 +29,7 @@ export interface Ability {
 }
 
 // Equipment System
-export type EquipmentSlot = 'weapon' | 'armor' | 'helmet' | 'gloves' | 'accessory';
+export type EquipmentSlot = 'weapon' | 'shield' | 'armor' | 'helmet' | 'gloves' | 'accessory';
 
 export interface Equipment {
   id: string;
@@ -46,6 +46,7 @@ export interface Equipment {
 
 export interface PlayerEquipment {
   weapon: Equipment | null;
+  shield: Equipment | null;
   armor: Equipment | null;
   helmet: Equipment | null;
   gloves: Equipment | null;
@@ -111,6 +112,33 @@ export const EQUIPMENT_DATABASE: Equipment[] = [
   // Epic
   { id: 'fists_of_fury', name: 'Fists of Fury', slot: 'weapon', attack: 15, defense: 2, hp: 0, mp: 8, rarity: 'epic', allowedJobs: ['Monk'], description: 'Legendary martial weapon' },
   { id: 'celestial_claws', name: 'Celestial Claws', slot: 'weapon', attack: 14, defense: 0, hp: 10, mp: 10, rarity: 'epic', allowedJobs: ['Monk'], description: 'Blessed by the heavens' },
+
+  // ========== SHIELDS (Fighter Only) ==========
+  // Common
+  { id: 'wooden_shield', name: 'Wooden Shield', slot: 'shield', attack: 0, defense: 2, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter'], description: 'Simple wooden protection' },
+  { id: 'buckler', name: 'Buckler', slot: 'shield', attack: 0, defense: 3, hp: 0, mp: 0, rarity: 'common', allowedJobs: ['Fighter'], description: 'Small and light' },
+  { id: 'round_shield', name: 'Round Shield', slot: 'shield', attack: 0, defense: 3, hp: 5, mp: 0, rarity: 'common', allowedJobs: ['Fighter'], description: 'Classic round design' },
+  { id: 'hide_shield', name: 'Hide Shield', slot: 'shield', attack: 0, defense: 2, hp: 5, mp: 0, rarity: 'common', allowedJobs: ['Fighter'], description: 'Tough animal hide' },
+  // Uncommon
+  { id: 'iron_shield', name: 'Iron Shield', slot: 'shield', attack: 0, defense: 5, hp: 5, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Solid iron construction' },
+  { id: 'steel_buckler', name: 'Steel Buckler', slot: 'shield', attack: 1, defense: 4, hp: 0, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Allows quick counters' },
+  { id: 'kite_shield', name: 'Kite Shield', slot: 'shield', attack: 0, defense: 6, hp: 8, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Extended body coverage' },
+  { id: 'tower_shield', name: 'Tower Shield', slot: 'shield', attack: 0, defense: 8, hp: 5, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Maximum protection' },
+  { id: 'spiked_shield', name: 'Spiked Shield', slot: 'shield', attack: 3, defense: 4, hp: 0, mp: 0, rarity: 'uncommon', allowedJobs: ['Fighter'], description: 'Defensive and offensive' },
+  // Rare
+  { id: 'knights_shield', name: "Knight's Shield", slot: 'shield', attack: 1, defense: 8, hp: 10, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Emblem of knighthood' },
+  { id: 'silver_shield', name: 'Silver Shield', slot: 'shield', attack: 0, defense: 7, hp: 5, mp: 5, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Blessed silver surface' },
+  { id: 'reinforced_tower', name: 'Reinforced Tower', slot: 'shield', attack: 0, defense: 12, hp: 10, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Steel-reinforced tower' },
+  { id: 'guardian_shield', name: 'Guardian Shield', slot: 'shield', attack: 0, defense: 9, hp: 15, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Protects the party' },
+  { id: 'flame_shield', name: 'Flame Shield', slot: 'shield', attack: 3, defense: 7, hp: 5, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Burns attackers' },
+  { id: 'frost_shield', name: 'Frost Shield', slot: 'shield', attack: 2, defense: 8, hp: 8, mp: 0, rarity: 'rare', allowedJobs: ['Fighter'], description: 'Freezes on contact' },
+  // Epic
+  { id: 'dragon_shield', name: 'Dragon Shield', slot: 'shield', attack: 3, defense: 14, hp: 20, mp: 0, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Scales of an ancient dragon' },
+  { id: 'aegis', name: 'Aegis', slot: 'shield', attack: 2, defense: 16, hp: 15, mp: 5, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Legendary divine shield' },
+  { id: 'wall_of_titans', name: 'Wall of Titans', slot: 'shield', attack: 0, defense: 20, hp: 25, mp: 0, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Immovable barrier' },
+  { id: 'mirror_shield', name: 'Mirror Shield', slot: 'shield', attack: 0, defense: 12, hp: 10, mp: 15, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Reflects magic attacks' },
+  { id: 'thunderguard', name: 'Thunderguard', slot: 'shield', attack: 5, defense: 13, hp: 15, mp: 0, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Lightning strikes back' },
+  { id: 'worldbreaker_shield', name: 'Worldbreaker Shield', slot: 'shield', attack: 4, defense: 18, hp: 30, mp: 0, rarity: 'epic', allowedJobs: ['Fighter'], description: 'Shield of the world protector' },
 
   // ========== FIGHTER ARMOR ==========
   // Common
@@ -512,7 +540,7 @@ export function getEffectiveStats(player: Player): { attack: number; defense: nu
   let maxHp = player.maxHp;
   let maxMp = player.maxMp;
   
-  const slots: EquipmentSlot[] = ['weapon', 'armor', 'helmet', 'gloves', 'accessory'];
+  const slots: EquipmentSlot[] = ['weapon', 'shield', 'armor', 'helmet', 'gloves', 'accessory'];
   for (const slot of slots) {
     const item = player.equipment[slot];
     if (item) {
@@ -670,19 +698,19 @@ export function createInitialState(): GameData {
         id: 'p1', name: 'Bork', job: 'Fighter', 
         hp: 50, maxHp: 50, mp: 0, maxMp: 0, attack: 12, defense: 8, 
         color: '#e74c3c', xp: 0, level: 1,
-        equipment: { weapon: fighterWeapon, armor: fighterArmor, helmet: null, gloves: null, accessory: null }
+        equipment: { weapon: fighterWeapon, shield: null, armor: fighterArmor, helmet: null, gloves: null, accessory: null }
       },
       { 
         id: 'p2', name: 'Pyra', job: 'Mage', 
         hp: 30, maxHp: 30, mp: 40, maxMp: 40, attack: 4, defense: 4, 
         color: '#9b59b6', xp: 0, level: 1,
-        equipment: { weapon: mageWeapon, armor: mageArmor, helmet: null, gloves: null, accessory: null }
+        equipment: { weapon: mageWeapon, shield: null, armor: mageArmor, helmet: null, gloves: null, accessory: null }
       },
       { 
         id: 'p3', name: 'Milo', job: 'Monk', 
         hp: 45, maxHp: 45, mp: 10, maxMp: 10, attack: 10, defense: 6, 
         color: '#f1c40f', xp: 0, level: 1,
-        equipment: { weapon: monkWeapon, armor: monkArmor, helmet: null, gloves: null, accessory: null }
+        equipment: { weapon: monkWeapon, shield: null, armor: monkArmor, helmet: null, gloves: null, accessory: null }
       },
     ],
     x: 1,
