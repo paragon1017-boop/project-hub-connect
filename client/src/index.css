@@ -1,68 +1,118 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-pixel: 'Press Start 2P', cursive;
-  --font-retro: 'VT323', monospace;
+  --font-pixel: 'Cinzel', serif;
+  --font-retro: 'Rajdhani', sans-serif;
 
-  --background: 240 10% 4%;
-  --foreground: 0 0% 90%;
+  --background: 225 25% 8%;
+  --foreground: 45 20% 90%;
   
-  --primary: 22 100% 50%; /* Classic RPG Amber/Orange */
+  --primary: 35 85% 55%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 240 5% 15%;
-  --secondary-foreground: 0 0% 80%;
+  --secondary: 225 20% 15%;
+  --secondary-foreground: 45 15% 75%;
   
-  --muted: 240 5% 10%;
-  --muted-foreground: 0 0% 50%;
+  --muted: 225 15% 12%;
+  --muted-foreground: 225 10% 50%;
   
-  --accent: 142 70% 50%; /* Green for success/hp */
-  --destructive: 0 84% 60%;
+  --accent: 160 60% 45%;
+  --accent-foreground: 0 0% 100%;
   
-  --border: 240 5% 20%;
-  --ring: 22 100% 50%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
   
-  --radius: 0px; /* Retro feel */
+  --border: 225 20% 20%;
+  --ring: 35 85% 55%;
+  
+  --radius: 8px;
+  
+  --card: 225 25% 10%;
+  --card-foreground: 45 20% 90%;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-retro);
-    image-rendering: pixelated; /* Critical for retro look */
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-pixel);
-    @apply font-normal tracking-tight leading-loose;
+    @apply font-semibold tracking-wide;
   }
 }
 
-/* Custom Scrollbar for retro feel */
+/* Modern Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  @apply bg-muted rounded-full;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary/50 hover:bg-primary;
-  border: 2px solid theme('colors.background');
+  @apply bg-primary/40 hover:bg-primary/60 rounded-full;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-/* CRT Scanline Effect */
-.scanlines {
-  background: linear-gradient(
-    to bottom,
-    rgba(255,255,255,0),
-    rgba(255,255,255,0) 50%,
-    rgba(0,0,0,0.1) 50%,
-    rgba(0,0,0,0.1)
-  );
-  background-size: 100% 4px;
-  pointer-events: none;
+/* Glassmorphism utility */
+.glass {
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(200, 140, 50, 0.3), 0 0 40px rgba(200, 140, 50, 0.1);
+}
+
+.glow-accent {
+  box-shadow: 0 0 15px rgba(80, 180, 140, 0.3);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(35 85% 65%) 0%, hsl(45 90% 70%) 50%, hsl(35 85% 55%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animated gradient border */
+@keyframes gradient-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-border {
+  background: linear-gradient(90deg, hsl(35 85% 55%), hsl(45 90% 70%), hsl(160 60% 45%), hsl(35 85% 55%));
+  background-size: 300% 100%;
+  animation: gradient-rotate 4s ease infinite;
+}
+
+/* Subtle pulse for important elements */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pulse-subtle {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+/* Combat damage flash */
+@keyframes damage-flash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5) saturate(1.2); }
+}
+
+.damage-flash {
+  animation: damage-flash 0.3s ease;
 }

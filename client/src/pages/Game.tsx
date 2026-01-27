@@ -507,18 +507,19 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className="min-h-screen bg-neutral-950 p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none">
-      {/* Scanline Overlay */}
-      <div className="absolute inset-0 scanlines z-50 pointer-events-none opacity-20" />
+      className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none">
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
       
       <div className="max-w-5xl w-full relative z-10 space-y-4">
         {/* TOP: Player Health Bars */}
-        <div className="bg-black/80 border-2 border-primary/50 p-3 flex justify-around gap-4">
+        <div className="bg-gradient-to-r from-card/90 via-card/80 to-card/90 backdrop-blur-sm rounded-xl border border-white/10 p-4 flex justify-around gap-4 shadow-xl">
           {game.party.map((char) => (
             <div key={char.id} className="flex-1 max-w-48">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-pixel text-xs text-primary">{char.name}</span>
-                <span className="font-retro text-xs text-muted-foreground">Lv.{char.level}</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-sm text-primary">{char.name}</span>
+                <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">Lv.{char.level}</span>
               </div>
               <StatBar label="HP" current={char.hp} max={getEffectiveStats(char).maxHp} color={char.color} />
             </div>
@@ -555,15 +556,15 @@ export default function Game() {
           {showEquipment && (
             <RetroCard title="EQUIPMENT">
               {/* Character Selection */}
-              <div className="flex gap-1 mb-2">
+              <div className="flex gap-1 mb-3 mt-2">
                 {game.party.map((char, idx) => (
                   <button
                     key={char.id}
                     onClick={() => setSelectedCharForEquip(idx)}
-                    className={`flex-1 px-1 py-0.5 text-[10px] font-pixel rounded border transition-colors ${
+                    className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
                       selectedCharForEquip === idx 
-                        ? 'border-primary bg-primary/20 text-primary' 
-                        : 'border-border bg-black/40 text-muted-foreground hover:bg-black/60'
+                        ? 'bg-primary/20 text-primary border border-primary/40 shadow-lg shadow-primary/10' 
+                        : 'bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10'
                     }`}
                     data-testid={`button-select-char-${idx}`}
                   >
@@ -574,19 +575,19 @@ export default function Game() {
               
               {/* Selected Character's Equipment Slots */}
               {game.party[selectedCharForEquip] && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {(['weapon', 'armor', 'helmet', 'accessory'] as const).map(slot => {
                     const item = game.party[selectedCharForEquip].equipment[slot];
                     return (
                       <div 
                         key={slot} 
-                        className="flex items-center justify-between bg-black/40 px-1.5 py-1 rounded border border-border/50"
+                        className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-retro text-muted-foreground capitalize">{slot}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground capitalize">{slot}:</span>
                             {item ? (
-                              <span className={`text-[10px] font-pixel truncate ${
+                              <span className={`text-xs font-medium truncate ${
                                 item.rarity === 'rare' ? 'text-blue-400' : 
                                 item.rarity === 'uncommon' ? 'text-green-400' : 
                                 item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
@@ -594,11 +595,11 @@ export default function Game() {
                                 {item.name}
                               </span>
                             ) : (
-                              <span className="text-[10px] text-muted-foreground italic">-</span>
+                              <span className="text-xs text-muted-foreground italic">Empty</span>
                             )}
                           </div>
                           {item && (
-                            <div className="text-[8px] text-amber-400/80 font-pixel">
+                            <div className="text-[10px] text-amber-400/80 mt-0.5">
                               {formatEquipmentStats(item)}
                             </div>
                           )}
@@ -606,7 +607,7 @@ export default function Game() {
                         {item && (
                           <button
                             onClick={() => unequipItem(selectedCharForEquip, slot)}
-                            className="text-[10px] px-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded ml-1"
+                            className="text-xs px-2 py-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded-md ml-2 transition-colors"
                             data-testid={`button-unequip-${slot}`}
                           >
                             X
@@ -617,59 +618,59 @@ export default function Game() {
                   })}
                   
                   {/* Show effective stats - inline */}
-                  <div className="flex gap-2 text-[10px] font-retro text-muted-foreground pt-1">
-                    <span>ATK:{getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
-                    <span>DEF:{getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
-                    <span>HP:{getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
-                    <span>MP:{getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
+                  <div className="flex gap-3 text-xs text-muted-foreground pt-2 justify-center">
+                    <span className="bg-white/5 px-2 py-1 rounded">ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
+                    <span className="bg-white/5 px-2 py-1 rounded">DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
+                    <span className="bg-white/5 px-2 py-1 rounded">HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
+                    <span className="bg-white/5 px-2 py-1 rounded">MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
                   </div>
                 </div>
               )}
               
-              {/* Equipment Inventory - Compact */}
-              <div className="mt-2 pt-2 border-t border-border">
-                <div className="text-[10px] font-pixel text-muted-foreground mb-1">
+              {/* Equipment Inventory */}
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="text-xs text-muted-foreground mb-2">
                   Bag ({game.equipmentInventory.length})
                 </div>
                 {game.equipmentInventory.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground italic text-center py-1">
+                  <div className="text-xs text-muted-foreground italic text-center py-2">
                     Empty
                   </div>
                 ) : (
-                  <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 max-h-36 overflow-y-auto">
                     {game.equipmentInventory.map((item, idx) => {
                       const char = game.party[selectedCharForEquip];
                       const canEquipThis = canEquip(char, item);
                       return (
                         <div 
                           key={`${item.id}-${idx}`}
-                          className={`flex items-center justify-between bg-black/40 px-1.5 py-0.5 rounded border border-border/50 ${
-                            !canEquipThis ? 'opacity-50' : ''
+                          className={`flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10 transition-opacity ${
+                            !canEquipThis ? 'opacity-40' : ''
                           }`}
                         >
                           <div className="flex-1 min-w-0">
-                            <span className={`text-[10px] font-pixel ${
+                            <span className={`text-xs font-medium ${
                               item.rarity === 'rare' ? 'text-blue-400' : 
                               item.rarity === 'uncommon' ? 'text-green-400' : 
                               item.rarity === 'epic' ? 'text-purple-400' : 'text-foreground'
                             }`}>
                               {item.name}
                             </span>
-                            <div className="text-[8px] text-amber-400/80 font-pixel">
+                            <div className="text-[10px] text-amber-400/80">
                               {formatEquipmentStats(item)}
                             </div>
                           </div>
                           <button
                             onClick={() => equipItem(selectedCharForEquip, item)}
                             disabled={!canEquipThis}
-                            className={`text-[10px] px-1.5 py-0.5 rounded ml-1 flex-shrink-0 ${
+                            className={`text-xs px-2 py-1 rounded-md ml-2 flex-shrink-0 transition-colors ${
                               canEquipThis 
                                 ? 'bg-primary/20 text-primary hover:bg-primary/40' 
                                 : 'bg-muted text-muted-foreground cursor-not-allowed'
                             }`}
                             data-testid={`button-equip-${item.id}`}
                           >
-                            +
+                            Equip
                           </button>
                         </div>
                       );
@@ -683,8 +684,8 @@ export default function Game() {
 
         {/* CENTER COLUMN: Viewport */}
         <div className="lg:col-span-6 order-1 lg:order-2">
-          <RetroCard className="p-1 bg-neutral-900 border-primary">
-            <div className="relative aspect-[4/3] w-full bg-black overflow-hidden">
+          <RetroCard className="p-1">
+            <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
               <DungeonView gameData={game} className="w-full h-full" />
               
@@ -702,7 +703,7 @@ export default function Game() {
                 const endX = Math.min(mapWidth, startX + mapSize);
                 
                 return (
-                  <div className="absolute top-2 left-2 z-30 bg-black/70 border border-primary/50 rounded p-1">
+                  <div className="absolute top-3 left-3 z-30 bg-black/80 backdrop-blur-sm border border-white/20 rounded-lg p-2 shadow-xl">
                     <div className="grid gap-[1px]" style={{ 
                       gridTemplateColumns: `repeat(${endX - startX}, 6px)` 
                     }}>
@@ -716,14 +717,14 @@ export default function Game() {
                           return (
                             <div
                               key={`${actualX}-${actualY}`}
-                              className={`w-[6px] h-[6px] ${
+                              className={`w-[6px] h-[6px] rounded-[1px] ${
                                 isPlayer 
-                                  ? 'bg-yellow-400' 
+                                  ? 'bg-amber-400 shadow-sm shadow-amber-400/50' 
                                   : isDoor
-                                    ? 'bg-amber-700'
+                                    ? 'bg-amber-600'
                                     : isWall 
-                                      ? 'bg-stone-600' 
-                                      : 'bg-stone-900'
+                                      ? 'bg-slate-500' 
+                                      : 'bg-slate-800'
                               }`}
                               style={isPlayer ? {
                                 clipPath: game.dir === 0 ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : // North
@@ -860,16 +861,16 @@ export default function Game() {
             </div>
             
             {/* Message Log */}
-            <div className="h-32 bg-black border-t-2 border-primary/20 p-4 font-retro text-lg overflow-hidden flex flex-col justify-end">
+            <div className="h-32 bg-gradient-to-t from-black/90 to-black/60 border-t border-white/10 p-4 text-base overflow-hidden flex flex-col justify-end">
               {logs.map((msg, i) => (
-                <div key={i} className={`opacity-${100 - i * 20} ${i===0 ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {i === 0 ? '> ' : '  '}{msg}
+                <div key={i} className={`transition-opacity ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.2 }}>
+                  {i === 0 ? '▸ ' : '  '}{msg}
                 </div>
               ))}
             </div>
             
             {/* Movement Controls */}
-            <div className="bg-black/60 p-4 border-t-2 border-primary/20 flex justify-center">
+            <div className="bg-black/40 backdrop-blur-sm p-4 border-t border-white/10 flex justify-center">
               <div className="grid grid-cols-3 gap-2 place-items-center">
                 <div />
                 <RetroButton onClick={() => {
@@ -877,18 +878,18 @@ export default function Game() {
                   if (game.dir === SOUTH) move(0, 1);
                   if (game.dir === EAST) move(1, 0);
                   if (game.dir === WEST) move(-1, 0);
-                }} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-forward">
+                }} className="w-12 h-12 p-0 flex items-center justify-center rounded-xl" data-testid="button-forward">
                   <ArrowUp className="w-5 h-5" />
                 </RetroButton>
                 <div />
                 
-                <RetroButton onClick={() => rotate('left')} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-rotate-left">
+                <RetroButton onClick={() => rotate('left')} className="w-12 h-12 p-0 flex items-center justify-center rounded-xl" data-testid="button-rotate-left">
                   <RotateCcw className="w-5 h-5" />
                 </RetroButton>
-                <div className="w-12 h-12 flex items-center justify-center text-xs text-muted-foreground font-pixel">
+                <div className="w-12 h-12 flex items-center justify-center text-xs text-muted-foreground">
                   WASD
                 </div>
-                <RetroButton onClick={() => rotate('right')} className="w-12 h-12 p-0 flex items-center justify-center" data-testid="button-rotate-right">
+                <RetroButton onClick={() => rotate('right')} className="w-12 h-12 p-0 flex items-center justify-center rounded-xl" data-testid="button-rotate-right">
                   <RotateCw className="w-5 h-5" />
                 </RetroButton>
               </div>
@@ -898,25 +899,25 @@ export default function Game() {
 
         {/* RIGHT COLUMN: Party Stats */}
         <div className="lg:col-span-3 order-3">
-          <RetroCard title="PARTY STATUS" className="h-full space-y-4">
+          <RetroCard title="PARTY STATUS" className="h-full space-y-3">
             {game.party.map((char) => (
-              <div key={char.id} className="bg-black/40 p-3 border border-border/50">
+              <div key={char.id} className="bg-white/5 p-3 rounded-lg border border-white/10">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-pixel text-xs text-primary">{char.name}</span>
-                  <span className="font-retro text-muted-foreground text-sm">Lv.{char.level} {char.job}</span>
+                  <span className="font-semibold text-sm text-primary">{char.name}</span>
+                  <span className="text-muted-foreground text-xs bg-white/5 px-2 py-0.5 rounded-full">Lv.{char.level} {char.job}</span>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <StatBar label="HP" current={char.hp} max={getEffectiveStats(char).maxHp} color={char.color} />
-                  <StatBar label="MP" current={char.mp} max={getEffectiveStats(char).maxMp} color="#3498db" />
-                  <StatBar label="XP" current={char.xp} max={xpForLevel(char.level + 1)} color="#f39c12" />
+                  <StatBar label="MP" current={char.mp} max={getEffectiveStats(char).maxMp} color="#3b82f6" />
+                  <StatBar label="XP" current={char.xp} max={xpForLevel(char.level + 1)} color="#f59e0b" />
                 </div>
               </div>
             ))}
             
-            <div className="mt-4 p-4 border-t border-border">
-              <div className="flex justify-between font-retro text-xl text-yellow-500">
-                <span>GOLD</span>
-                <span>{game.gold}</span>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="flex justify-between items-center bg-gradient-to-r from-amber-500/20 to-amber-600/10 px-4 py-3 rounded-lg border border-amber-500/20">
+                <span className="text-amber-400 font-semibold">GOLD</span>
+                <span className="text-amber-300 font-bold text-xl">{game.gold}</span>
               </div>
             </div>
           </RetroCard>
