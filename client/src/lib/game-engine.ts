@@ -221,6 +221,23 @@ export interface Tile {
   event?: 'monster' | 'treasure' | 'stairs';
 }
 
+// Map tile values:
+// 0 = floor, 1 = wall, 2 = door, 3 = ladder down, 4 = ladder up
+export const TILE_FLOOR = 0;
+export const TILE_WALL = 1;
+export const TILE_DOOR = 2;
+export const TILE_LADDER_DOWN = 3;
+export const TILE_LADDER_UP = 4;
+
+// Get dungeon size based on floor level
+// Floor 1: 16x16, Floor 2: 20x20, Floor 3: 24x24, etc. (max 40x40)
+export function getDungeonSize(floor: number): { width: number; height: number } {
+  const baseSize = 16;
+  const growthPerFloor = 4;
+  const size = Math.min(40, baseSize + (floor - 1) * growthPerFloor);
+  return { width: size, height: size };
+}
+
 export interface GameData {
   party: Player[];
   x: number;
@@ -242,6 +259,9 @@ export function createInitialState(): GameData {
   const mageArmor = getEquipmentById('cloth_robe') || null;
   const monkWeapon = getEquipmentById('brass_knuckles') || null;
   const monkArmor = getEquipmentById('leather_vest') || null;
+  
+  const startingFloor = 1;
+  const { width, height } = getDungeonSize(startingFloor);
   
   return {
     party: [
@@ -267,16 +287,55 @@ export function createInitialState(): GameData {
     x: 1,
     y: 1,
     dir: EAST,
-    map: generateMaze(32, 32),
+    map: generateMaze(width, height, startingFloor),
     inventory: ['Potion', 'Torch'],
     equipmentInventory: [], // Start with no extra equipment
     gold: 0,
-    level: 1,
+    level: startingFloor,
   };
 }
 
+// Generate a new floor map when changing levels
+export function generateFloorMap(floor: number): { map: number[][]; startX: number; startY: number; ladderDownX: number; ladderDownY: number } {
+  const { width, height } = getDungeonSize(floor);
+  const map = generateMaze(width, height, floor);
+  
+  // Find the ladder up position for spawning player (when descending to this floor)
+  let startX = 1, startY = 1;
+  let ladderDownX = 1, ladderDownY = 1;
+  
+  outerUp: for (let y = 0; y < map.length; y++) {
+    for (let x = 0; x < map[0].length; x++) {
+      if (map[y][x] === TILE_LADDER_UP) {
+        startX = x;
+        startY = y;
+        break outerUp;
+      }
+    }
+  }
+  
+  // Find ladder down position (for spawning when ascending from below)
+  outerDown: for (let y = 0; y < map.length; y++) {
+    for (let x = 0; x < map[0].length; x++) {
+      if (map[y][x] === TILE_LADDER_DOWN) {
+        ladderDownX = x;
+        ladderDownY = y;
+        break outerDown;
+      }
+    }
+  }
+  
+  // For floor 1, spawn at starting position (no ladder up exists)
+  if (floor === 1) {
+    startX = 1;
+    startY = 1;
+  }
+  
+  return { map, startX, startY, ladderDownX, ladderDownY };
+}
+
 // Improved Maze Generation - ensures connectivity and proper starting area
-function generateMaze(width: number, height: number): number[][] {
+function generateMaze(width: number, height: number, floor: number = 1): number[][] {
   const map = Array(height).fill(0).map(() => Array(width).fill(1)); // Fill with walls
   
   // Use iterative approach with explicit stack to avoid recursion issues
@@ -348,14 +407,39 @@ function generateMaze(width: number, height: number): number[][] {
   }
   
   // Ensure starting area has a door/entrance behind (west wall at x=0 is the "entrance")
-  // Mark position (0, 1) as a special "door" tile (value 2)
-  map[1][0] = 2; // Door behind player at start
+  // Mark position (0, 1) as a special "door" tile (value 2) - only on floor 1
+  if (floor === 1) {
+    map[1][0] = TILE_DOOR; // Door behind player at start (entrance to dungeon)
+  } else {
+    // On deeper floors, place ladder UP near start (player comes from above)
+    map[1][1] = TILE_LADDER_UP;
+  }
   
   // Make sure player isn't boxed in - verify path exists to the east
   // The carving algorithm guarantees connectivity, but double-check
   if (map[1][2] === 1) {
     map[1][2] = 0; // Ensure path to the east
   }
+  
+  // Place ladder DOWN to next level - find a floor tile far from start
+  let ladderDownX = 1, ladderDownY = 1;
+  let maxDistance = 0;
+  
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      if (map[y][x] === TILE_FLOOR) {
+        const distance = Math.abs(x - 1) + Math.abs(y - 1); // Manhattan distance from start
+        if (distance > maxDistance) {
+          maxDistance = distance;
+          ladderDownX = x;
+          ladderDownY = y;
+        }
+      }
+    }
+  }
+  
+  // Place the ladder down at the farthest reachable point
+  map[ladderDownY][ladderDownX] = TILE_LADDER_DOWN;
   
   return map;
 }

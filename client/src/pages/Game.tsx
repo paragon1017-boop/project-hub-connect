@@ -11,7 +11,9 @@ import {
   getRandomMonster, Monster,
   xpForLevel, getLevelUpStats, Player,
   Ability, getAbilitiesForJob, getScaledAbilityPower,
-  getEffectiveStats, Equipment, getRandomEquipmentDrop, canEquip
+  getEffectiveStats, Equipment, getRandomEquipmentDrop, canEquip,
+  TILE_FLOOR, TILE_WALL, TILE_DOOR, TILE_LADDER_DOWN, TILE_LADDER_UP,
+  generateFloorMap
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
 import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown } from "lucide-react";
@@ -96,18 +98,34 @@ export default function Game() {
     const nx = game.x + dx;
     const ny = game.y + dy;
 
-    // Wall/door collision (1 = wall, 2 = door)
-    if (game.map[ny][nx] !== 0) {
+    // Check bounds
+    if (ny < 0 || ny >= game.map.length || nx < 0 || nx >= game.map[0].length) {
+      log("Blocked.");
+      return;
+    }
+
+    const tile = game.map[ny][nx];
+    // Wall/door collision (1 = wall, 2 = door) - can walk on floor, ladder down, ladder up
+    if (tile === TILE_WALL || tile === TILE_DOOR) {
       log("Blocked.");
       return;
     }
 
     setGame(prev => prev ? ({ ...prev, x: nx, y: ny }) : null);
 
-    // Random Encounter Chance (10%)
-    if (Math.random() < 0.1) {
-      // Spawn 1-3 monsters
-      const monsterCount = 1 + Math.floor(Math.random() * 3);
+    // Check for ladder tiles and show prompt
+    if (tile === TILE_LADDER_DOWN) {
+      log("A ladder leading deeper! Press SPACE to descend.");
+    } else if (tile === TILE_LADDER_UP && game.level > 1) {
+      log("A ladder leading up! Press SPACE to climb.");
+    }
+
+    // Random Encounter Chance (10%) - not on ladder tiles
+    if (tile === TILE_FLOOR && Math.random() < 0.1) {
+      // Spawn 1-3 monsters, more likely to have multiple on deeper floors
+      const baseCount = 1 + Math.floor(Math.random() * 2);
+      const bonusMonsters = Math.floor(game.level / 2);
+      const monsterCount = Math.min(4, baseCount + (Math.random() < 0.3 ? bonusMonsters : 0));
       const monsters: Monster[] = [];
       for (let i = 0; i < monsterCount; i++) {
         monsters.push(getRandomMonster(game.level));
@@ -118,6 +136,42 @@ export default function Game() {
       } else {
         log(`${monsterCount} monsters appeared!`);
       }
+    }
+  }, [game, combatState.active, log]);
+
+  // Ladder climbing function
+  const useLadder = useCallback(() => {
+    if (!game || combatState.active) return;
+    
+    const currentTile = game.map[game.y][game.x];
+    
+    if (currentTile === TILE_LADDER_DOWN) {
+      // Descend to next floor
+      const newFloor = game.level + 1;
+      const { map, startX, startY } = generateFloorMap(newFloor);
+      setGame(prev => prev ? ({
+        ...prev,
+        level: newFloor,
+        map,
+        x: startX,
+        y: startY,
+        dir: EAST
+      }) : null);
+      log(`Descended to Floor ${newFloor}. The dungeon grows darker...`);
+    } else if (currentTile === TILE_LADDER_UP && game.level > 1) {
+      // Ascend to previous floor
+      const newFloor = game.level - 1;
+      const { map, ladderDownX, ladderDownY } = generateFloorMap(newFloor);
+      // When going up, spawn at the ladder down position of the floor above
+      setGame(prev => prev ? ({
+        ...prev,
+        level: newFloor,
+        map,
+        x: ladderDownX,
+        y: ladderDownY,
+        dir: EAST
+      }) : null);
+      log(`Ascended to Floor ${newFloor}. The air feels lighter.`);
     }
   }, [game, combatState.active, log]);
 
@@ -254,13 +308,16 @@ export default function Game() {
     log(`${char.name} unequipped ${item.name}.`);
   }, [game, log]);
 
-  // Combat keyboard shortcuts
+  // Combat keyboard shortcuts and ladder interaction
   useKey(' ', (e) => {
+    e.preventDefault();
     if (combatState.active && combatState.monsters.length > 0) {
-      e.preventDefault();
       handleAttack();
+    } else if (game && !combatState.active) {
+      // Try to use ladder when not in combat
+      useLadder();
     }
-  }, {}, [combatState, game]);
+  }, {}, [combatState, game, useLadder]);
 
   useKey('Shift', (e) => {
     if (e.location === 2 && combatState.active) { // Right Shift only
@@ -751,6 +808,10 @@ export default function Game() {
                 
                 return (
                   <div className="absolute top-3 left-3 z-30 bg-black/80 backdrop-blur-sm border border-white/20 rounded-lg p-2 shadow-xl">
+                    {/* Floor indicator */}
+                    <div className="text-[10px] text-amber-400 font-bold text-center mb-1.5 tracking-wider">
+                      FLOOR {game.level}
+                    </div>
                     <div className="grid gap-[1px]" style={{ 
                       gridTemplateColumns: `repeat(${endX - startX}, 6px)` 
                     }}>
@@ -759,19 +820,25 @@ export default function Game() {
                           const actualX = startX + viewX;
                           const actualY = startY + viewY;
                           const isPlayer = actualX === game.x && actualY === game.y;
-                          const isWall = cell === 1;
-                          const isDoor = cell === 2;
+                          const isWall = cell === TILE_WALL;
+                          const isDoor = cell === TILE_DOOR;
+                          const isLadderDown = cell === TILE_LADDER_DOWN;
+                          const isLadderUp = cell === TILE_LADDER_UP;
                           return (
                             <div
                               key={`${actualX}-${actualY}`}
                               className={`w-[6px] h-[6px] rounded-[1px] ${
                                 isPlayer 
                                   ? 'bg-amber-400 shadow-sm shadow-amber-400/50' 
-                                  : isDoor
-                                    ? 'bg-amber-600'
-                                    : isWall 
-                                      ? 'bg-slate-500' 
-                                      : 'bg-slate-800'
+                                  : isLadderDown
+                                    ? 'bg-green-500 shadow-sm shadow-green-500/50'
+                                    : isLadderUp
+                                      ? 'bg-yellow-400 shadow-sm shadow-yellow-400/50'
+                                      : isDoor
+                                        ? 'bg-amber-600'
+                                        : isWall 
+                                          ? 'bg-slate-500' 
+                                          : 'bg-slate-800'
                               }`}
                               style={isPlayer ? {
                                 clipPath: game.dir === 0 ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : // North
