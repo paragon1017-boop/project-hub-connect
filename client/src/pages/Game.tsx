@@ -532,6 +532,46 @@ export default function Game() {
         background: 'radial-gradient(ellipse at top right, rgba(255,150,50,0.2) 0%, transparent 60%)'
       }} />
       
+      {/* Slime decorations */}
+      {/* Green slime pool - bottom left */}
+      <div className="absolute bottom-[15%] left-[8%] w-20 h-10 pointer-events-none opacity-60" style={{
+        background: 'radial-gradient(ellipse at center, rgba(80,180,80,0.5) 0%, rgba(50,120,50,0.3) 50%, transparent 70%)',
+        borderRadius: '50%',
+        filter: 'blur(2px)'
+      }} />
+      {/* Purple slime drip - top left */}
+      <div className="absolute top-[25%] left-[5%] w-3 h-16 pointer-events-none opacity-50" style={{
+        background: 'linear-gradient(180deg, rgba(140,80,180,0.6) 0%, rgba(100,50,140,0.4) 60%, transparent 100%)',
+        borderRadius: '0 0 50% 50%',
+        filter: 'blur(1px)'
+      }} />
+      {/* Green slime drops - right side */}
+      <div className="absolute top-[40%] right-[6%] w-4 h-4 pointer-events-none opacity-50" style={{
+        background: 'radial-gradient(circle, rgba(100,200,100,0.6) 0%, transparent 70%)',
+        borderRadius: '50%'
+      }} />
+      <div className="absolute top-[45%] right-[7%] w-2 h-2 pointer-events-none opacity-40" style={{
+        background: 'radial-gradient(circle, rgba(80,160,80,0.5) 0%, transparent 70%)',
+        borderRadius: '50%'
+      }} />
+      {/* Purple slime pool - bottom right */}
+      <div className="absolute bottom-[20%] right-[10%] w-16 h-8 pointer-events-none opacity-50" style={{
+        background: 'radial-gradient(ellipse at center, rgba(120,60,160,0.5) 0%, rgba(80,40,120,0.3) 50%, transparent 70%)',
+        borderRadius: '50%',
+        filter: 'blur(2px)'
+      }} />
+      {/* Green slime line - left side */}
+      <div className="absolute top-[55%] left-[3%] w-2 h-24 pointer-events-none opacity-40" style={{
+        background: 'linear-gradient(180deg, transparent 0%, rgba(70,150,70,0.4) 20%, rgba(90,180,90,0.5) 50%, rgba(60,130,60,0.3) 80%, transparent 100%)',
+        borderRadius: '50%',
+        filter: 'blur(1px)'
+      }} />
+      {/* Small purple drops */}
+      <div className="absolute bottom-[35%] left-[12%] w-3 h-3 pointer-events-none opacity-45" style={{
+        background: 'radial-gradient(circle, rgba(150,90,190,0.5) 0%, transparent 70%)',
+        borderRadius: '50%'
+      }} />
+      
       <div className="max-w-5xl w-full relative z-10 space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
