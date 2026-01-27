@@ -35,13 +35,13 @@ export function TransparentMonster({ src, alt, className }: TransparentMonsterPr
         const b = data[i + 2];
         
         const brightness = (r + g + b) / 3;
-        const isGrayish = Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && Math.abs(r - b) < 20;
+        const isGrayish = Math.abs(r - g) < 12 && Math.abs(g - b) < 12 && Math.abs(r - b) < 12;
         
-        if (brightness > 200 && isGrayish) {
+        if (brightness > 240 && isGrayish) {
           data[i + 3] = 0;
         }
-        else if (brightness > 180 && isGrayish) {
-          data[i + 3] = Math.floor((200 - brightness) * 12);
+        else if (brightness > 225 && isGrayish) {
+          data[i + 3] = Math.floor((240 - brightness) * 17);
         }
       }
       
