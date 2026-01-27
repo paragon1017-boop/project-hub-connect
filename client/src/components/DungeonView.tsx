@@ -105,7 +105,7 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
         const rowDistance = (h * 0.5) / p;
         
         // Beam gets thicker as it gets closer (perspective)
-        const beamHeight = Math.max(3, Math.floor(8 / rowDistance));
+        const beamHeight = Math.max(6, Math.floor(18 / rowDistance));
         const darkness = Math.min(0.6, rowDistance / 8);
         
         // Wood grain base color
