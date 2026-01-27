@@ -166,8 +166,13 @@ export default function Game() {
   // Toggle mini map
   useKey('m', () => setShowMiniMap(prev => !prev), {}, []);
   
-  // Toggle equipment panel (E key)
+  // Toggle equipment panel (E key) - handle both lowercase and uppercase
   useKey('e', () => {
+    if (!combatState.active) {
+      setShowEquipment(prev => !prev);
+    }
+  }, {}, [combatState.active]);
+  useKey('E', () => {
     if (!combatState.active) {
       setShowEquipment(prev => !prev);
     }
