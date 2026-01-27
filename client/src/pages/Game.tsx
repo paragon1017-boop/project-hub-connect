@@ -363,6 +363,17 @@ export default function Game() {
     setGame(prev => prev ? ({ ...prev, party: newParty, equipmentInventory: newEquipInv }) : null);
     log(`${char.name} unequipped ${getEnhancedName(item)}.`);
   }, [game, log]);
+  
+  // Drop (discard) an item from inventory
+  const dropItem = useCallback((item: Equipment) => {
+    if (!game) return;
+    
+    // Remove item from inventory
+    const newEquipInv = game.equipmentInventory.filter(i => i.id !== item.id);
+    
+    setGame(prev => prev ? ({ ...prev, equipmentInventory: newEquipInv }) : null);
+    log(`Dropped ${getEnhancedName(item)}.`);
+  }, [game, log]);
 
   // Combat keyboard shortcuts and ladder interaction
   useKey(' ', (e) => {
@@ -716,42 +727,112 @@ export default function Game() {
             </RetroButton>
           </RetroCard>
           
-          {/* Equipment Panel - Compact */}
+          {/* Equipment Panel - Expanded Overlay */}
           {showEquipment && (
-            <RetroCard title="EQUIPMENT">
-              {/* Character Selection */}
-              <div className="flex gap-1 mb-3 mt-2">
-                {game.party.map((char, idx) => (
-                  <button
-                    key={char.id}
-                    onClick={() => setSelectedCharForEquip(idx)}
-                    className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
-                      selectedCharForEquip === idx 
-                        ? 'bg-primary/20 text-primary border border-primary/40 shadow-lg shadow-primary/10' 
-                        : 'bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10'
-                    }`}
-                    data-testid={`button-select-char-${idx}`}
+            <div className="absolute left-0 top-0 z-50 w-[420px] bg-black/95 backdrop-blur-sm border border-primary/30 rounded-lg shadow-2xl shadow-black/50">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-primary font-pixel text-sm">EQUIPMENT</h3>
+                  <button 
+                    onClick={() => setShowEquipment(false)}
+                    className="text-muted-foreground hover:text-primary text-lg px-2"
+                    data-testid="button-close-equipment"
                   >
-                    {char.name}
+                    ×
                   </button>
-                ))}
-              </div>
-              
-              {/* Selected Character's Equipment Slots */}
-              {game.party[selectedCharForEquip] && (
-                <div className="space-y-2">
-                  {(['weapon', 'shield', 'armor', 'helmet', 'gloves', 'accessory'] as const).map(slot => {
-                    const item = game.party[selectedCharForEquip].equipment[slot];
-                    return (
-                      <div 
-                        key={slot} 
-                        className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground capitalize">{slot}:</span>
-                            {item ? (
-                              <span className={`text-xs font-medium truncate ${
+                </div>
+                
+                {/* Character Selection */}
+                <div className="flex gap-1 mb-3">
+                  {game.party.map((char, idx) => (
+                    <button
+                      key={char.id}
+                      onClick={() => setSelectedCharForEquip(idx)}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                        selectedCharForEquip === idx 
+                          ? 'bg-primary/20 text-primary border border-primary/40 shadow-lg shadow-primary/10' 
+                          : 'bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10'
+                      }`}
+                      data-testid={`button-select-char-${idx}`}
+                    >
+                      {char.name}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Selected Character's Equipment Slots - 2 columns */}
+                {game.party[selectedCharForEquip] && (
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {(['weapon', 'shield', 'armor', 'helmet', 'gloves', 'accessory'] as const).map(slot => {
+                      const item = game.party[selectedCharForEquip].equipment[slot];
+                      return (
+                        <div 
+                          key={slot} 
+                          className="flex items-center justify-between bg-white/5 px-2 py-1.5 rounded-lg border border-white/10"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-muted-foreground capitalize w-12">{slot}:</span>
+                              {item ? (
+                                <span className={`text-[10px] font-medium truncate ${
+                                  item.rarity === 'rare' ? 'text-blue-400' : 
+                                  item.rarity === 'uncommon' ? 'text-green-400' : 
+                                  item.rarity === 'epic' ? 'text-purple-400' : 
+                                  (item.enhancement || 0) > 0 ? 'text-yellow-400' : 'text-foreground'
+                                }`}>
+                                  {getEnhancedName(item)}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic">Empty</span>
+                              )}
+                            </div>
+                          </div>
+                          {item && (
+                            <button
+                              onClick={() => unequipItem(selectedCharForEquip, slot)}
+                              className="text-[10px] px-1.5 py-0.5 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded transition-colors"
+                              data-testid={`button-unequip-${slot}`}
+                            >
+                              X
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* Show effective stats - horizontal */}
+                <div className="flex gap-2 text-[10px] text-muted-foreground mb-3">
+                  <span className="bg-white/5 px-2 py-1 rounded">ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
+                  <span className="bg-white/5 px-2 py-1 rounded">DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
+                  <span className="bg-white/5 px-2 py-1 rounded">HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
+                  <span className="bg-white/5 px-2 py-1 rounded">MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
+                </div>
+                
+                {/* Equipment Inventory - 2 columns */}
+                <div className="pt-3 border-t border-white/10">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Bag ({game.equipmentInventory.length})
+                  </div>
+                  {game.equipmentInventory.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic text-center py-2">
+                      Empty
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {game.equipmentInventory.map((item, idx) => {
+                        const char = game.party[selectedCharForEquip];
+                        const canEquipThis = canEquip(char, item);
+                        return (
+                          <div 
+                            key={`${item.id}-${idx}`}
+                            className={`bg-white/5 px-2 py-2 rounded-lg border border-white/10 transition-opacity ${
+                              !canEquipThis ? 'opacity-40' : ''
+                            }`}
+                          >
+                            <div className="mb-1">
+                              <span className={`text-[10px] font-medium block truncate ${
                                 item.rarity === 'rare' ? 'text-blue-400' : 
                                 item.rarity === 'uncommon' ? 'text-green-400' : 
                                 item.rarity === 'epic' ? 'text-purple-400' : 
@@ -759,92 +840,39 @@ export default function Game() {
                               }`}>
                                 {getEnhancedName(item)}
                               </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">Empty</span>
-                            )}
-                          </div>
-                          {item && (
-                            <div className="text-[10px] text-amber-400/80 mt-0.5">
-                              {formatEquipmentStats(item)}
+                              <div className="text-[9px] text-amber-400/80">
+                                {formatEquipmentStats(item)}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        {item && (
-                          <button
-                            onClick={() => unequipItem(selectedCharForEquip, slot)}
-                            className="text-xs px-2 py-1 bg-destructive/20 text-destructive hover:bg-destructive/40 rounded-md ml-2 transition-colors"
-                            data-testid={`button-unequip-${slot}`}
-                          >
-                            X
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Show effective stats - grid layout */}
-                  <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground pt-2">
-                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">ATK: {getEffectiveStats(game.party[selectedCharForEquip]).attack}</span>
-                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">DEF: {getEffectiveStats(game.party[selectedCharForEquip]).defense}</span>
-                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">HP: {getEffectiveStats(game.party[selectedCharForEquip]).maxHp}</span>
-                    <span className="bg-white/5 px-1.5 py-1 rounded text-center">MP: {getEffectiveStats(game.party[selectedCharForEquip]).maxMp}</span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Equipment Inventory */}
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="text-xs text-muted-foreground mb-2">
-                  Bag ({game.equipmentInventory.length})
-                </div>
-                {game.equipmentInventory.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic text-center py-2">
-                    Empty
-                  </div>
-                ) : (
-                  <div className="space-y-1 max-h-36 overflow-y-auto">
-                    {game.equipmentInventory.map((item, idx) => {
-                      const char = game.party[selectedCharForEquip];
-                      const canEquipThis = canEquip(char, item);
-                      return (
-                        <div 
-                          key={`${item.id}-${idx}`}
-                          className={`flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10 transition-opacity ${
-                            !canEquipThis ? 'opacity-40' : ''
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-xs font-medium ${
-                              item.rarity === 'rare' ? 'text-blue-400' : 
-                              item.rarity === 'uncommon' ? 'text-green-400' : 
-                              item.rarity === 'epic' ? 'text-purple-400' : 
-                              (item.enhancement || 0) > 0 ? 'text-yellow-400' : 'text-foreground'
-                            }`}>
-                              {getEnhancedName(item)}
-                            </span>
-                            <div className="text-[10px] text-amber-400/80">
-                              {formatEquipmentStats(item)}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => equipItem(selectedCharForEquip, item)}
+                                disabled={!canEquipThis}
+                                className={`text-[10px] px-2 py-0.5 rounded flex-1 transition-colors ${
+                                  canEquipThis 
+                                    ? 'bg-primary/20 text-primary hover:bg-primary/40' 
+                                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                                }`}
+                                data-testid={`button-equip-${item.id}`}
+                              >
+                                Equip
+                              </button>
+                              <button
+                                onClick={() => dropItem(item)}
+                                className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded transition-colors"
+                                data-testid={`button-drop-${item.id}`}
+                              >
+                                Drop
+                              </button>
                             </div>
                           </div>
-                          <button
-                            onClick={() => equipItem(selectedCharForEquip, item)}
-                            disabled={!canEquipThis}
-                            className={`text-xs px-2 py-1 rounded-md ml-2 flex-shrink-0 transition-colors ${
-                              canEquipThis 
-                                ? 'bg-primary/20 text-primary hover:bg-primary/40' 
-                                : 'bg-muted text-muted-foreground cursor-not-allowed'
-                            }`}
-                            data-testid={`button-equip-${item.id}`}
-                          >
-                            Equip
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </RetroCard>
+            </div>
           )}
         </div>
 
