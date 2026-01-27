@@ -113,8 +113,9 @@ export default function Game() {
   useKey('d', () => rotate('right'), {}, [game]);
 
   // Combat keyboard shortcuts
-  useKey(' ', () => {
+  useKey(' ', (e) => {
     if (combatState.active && combatState.monster) {
+      e.preventDefault();
       handleAttack();
     }
   }, {}, [combatState, game]);
