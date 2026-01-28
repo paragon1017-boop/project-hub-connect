@@ -144,7 +144,7 @@ export default function Game() {
       // Calculate turn order based on speed (highest speed goes first)
       const partyWithSpeed = game.party
         .map((char, idx) => ({ idx, speed: char.hp > 0 ? getEffectiveStats(char).speed : -1 }))
-        .filter(c => c.speed > 0)
+        .filter(c => c.speed >= 0)
         .sort((a, b) => b.speed - a.speed);
       const turnOrder = partyWithSpeed.map(c => c.idx);
       const firstCharIdx = turnOrder.length > 0 ? turnOrder[0] : 0;
@@ -574,10 +574,25 @@ export default function Game() {
     // Recalculate turn order for next round (based on current party speed)
     const partyWithSpeed = newParty
       .map((char, idx) => ({ idx, speed: char.hp > 0 ? getEffectiveStats(char).speed : -1 }))
-      .filter(c => c.speed > 0)
+      .filter(c => c.speed >= 0)
       .sort((a, b) => b.speed - a.speed);
     const newTurnOrder = partyWithSpeed.map(c => c.idx);
-    const firstCharIdx = newTurnOrder.length > 0 ? newTurnOrder[0] : 0;
+    
+    // Check if all party members are dead
+    if (newTurnOrder.length === 0 || newParty.every(c => c.hp <= 0)) {
+      log("GAME OVER");
+      setCombatState(prev => ({ 
+        ...prev, 
+        monsters: updatedMonsters,
+        currentCharIndex: 0,
+        turnOrder: [],
+        turnOrderPosition: 0,
+        defending: false
+      }));
+      return;
+    }
+    
+    const firstCharIdx = newTurnOrder[0];
     
     setCombatState(prev => ({ 
       ...prev, 
@@ -586,11 +601,7 @@ export default function Game() {
       turnOrder: newTurnOrder,
       turnOrderPosition: 0,
       defending: false
-    }));
-    
-    if (newParty.every(c => c.hp <= 0)) {
-      log("GAME OVER");
-    }
+    }))
   }, [game, log]);
 
   const useAbility = (ability: Ability, charIndex: number) => {
