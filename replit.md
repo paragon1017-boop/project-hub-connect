@@ -46,10 +46,17 @@ Preferred communication style: Simple, everyday language.
 - **Character Classes**: Fighter, Mage, Monk with unique abilities
 - **Movement**: Cardinal directions (WASD/Arrow keys) with 90-degree turns
 - **Mini Map**: Toggle with M key, shows 15x15 grid with player direction
-- **Equipment System**: 4 slots (weapon, armor, helmet, accessory) with job restrictions and rarity tiers
+- **Equipment System**: 6 slots (weapon, shield, armor, helmet, gloves, accessory) with job restrictions and rarity tiers
   - Equipment drops from monsters with rarity based on dungeon floor
-  - Stats affect ATK/DEF/HP/MP with bonuses applied to combat and resource pools
+  - Stats affect ATK/DEF/HP/MP/SPD with bonuses applied to combat and resource pools
   - Toggle equipment panel with E key
+- **Speed System**: Determines turn order in combat (highest speed acts first)
+  - Base speed by job: Monk (12), Fighter (8), Mage (6)
+  - Speed increases on level-up: Monk +2, Fighter +1, Mage +1
+  - Equipment speed bonuses:
+    - Gloves: Common +2, Uncommon +3, Rare +4, Epic +5
+    - Accessories: Common +1, Uncommon +1, Rare +2, Epic +3
+    - Other slots: Rare +1, Epic +1
 
 ### Project Structure
 ```
