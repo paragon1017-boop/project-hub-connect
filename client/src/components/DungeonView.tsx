@@ -1030,8 +1030,8 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
     <div className={className}>
       <canvas 
         ref={canvasRef} 
-        width={320} 
-        height={240} 
+        width={800} 
+        height={600} 
         className="w-full h-full image-pixelated rounded-lg border-4 border-muted shadow-inner bg-black"
       />
       {/* Compass / Coords Overlay */}
