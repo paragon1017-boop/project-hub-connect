@@ -484,23 +484,82 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
          const fog = Math.min(1, 4.0 / perpWallDist); 
          
          if (isDoor) {
-           // Draw metal door using texture
+           // Draw metal door using texture with stone frame
            const doorHeight = drawEnd - drawStart;
            const doorTex = texturesRef.current.door;
+           const wallTex = texturesRef.current.wall;
            
-           if (doorTex) {
-             // Sample from door texture (similar to wall rendering)
-             const doorTexX = Math.floor(wallX * doorTex.width);
+           // Door frame parameters (percentage of door width)
+           const frameWidth = 0.12; // Stone frame on each side
+           const topFrameHeight = 0.08; // Stone lintel at top
+           const isInFrame = wallX < frameWidth || wallX > (1 - frameWidth);
+           const isInTopFrame = true; // We'll handle top frame with height
+           
+           if (isInFrame && wallTex) {
+             // Draw stone frame on edges using wall texture
+             const frameTexX = Math.floor(wallX * wallTex.width);
+             
+             if (side === 1) {
+               ctx.globalAlpha = 0.8;
+             }
+             
+             ctx.drawImage(
+               wallTex,
+               frameTexX, 0, 1, wallTex.height,
+               x, drawStart, 2, doorHeight
+             );
+             
+             // Add dark edge to create depth/recess effect
+             ctx.globalAlpha = 0.4;
+             ctx.fillStyle = "#000";
+             if (wallX < frameWidth) {
+               // Left frame - dark on right edge
+               if (wallX > frameWidth - 0.03) {
+                 ctx.fillRect(x, drawStart, 2, doorHeight);
+               }
+             } else {
+               // Right frame - dark on left edge
+               if (wallX < (1 - frameWidth) + 0.03) {
+                 ctx.fillRect(x, drawStart, 2, doorHeight);
+               }
+             }
+             ctx.globalAlpha = 1.0;
+           } else if (doorTex) {
+             // Draw the door itself (recessed slightly)
+             // Map wallX from frame area to full door texture
+             const doorAreaStart = frameWidth;
+             const doorAreaEnd = 1 - frameWidth;
+             const doorTexWallX = (wallX - doorAreaStart) / (doorAreaEnd - doorAreaStart);
+             const doorTexX = Math.floor(Math.max(0, Math.min(1, doorTexWallX)) * doorTex.width);
+             
+             // Top stone lintel
+             const lintelHeight = Math.floor(doorHeight * topFrameHeight);
+             
+             if (wallTex) {
+               // Draw lintel at top
+               const lintelTexX = Math.floor(wallX * wallTex.width);
+               ctx.drawImage(
+                 wallTex,
+                 lintelTexX, 0, 1, wallTex.height * 0.2,
+                 x, drawStart, 2, lintelHeight
+               );
+               // Dark bottom edge of lintel
+               ctx.globalAlpha = 0.5;
+               ctx.fillStyle = "#000";
+               ctx.fillRect(x, drawStart + lintelHeight - 2, 2, 3);
+               ctx.globalAlpha = 1.0;
+             }
              
              // Apply side shading (darker on one side for depth)
              if (side === 1) {
                ctx.globalAlpha = 0.85;
              }
              
+             // Draw door below lintel
              ctx.drawImage(
                doorTex,
                doorTexX, 0, 1, doorTex.height,
-               x, drawStart, 2, doorHeight
+               x, drawStart + lintelHeight, 2, doorHeight - lintelHeight
              );
              
              ctx.globalAlpha = 1.0;
