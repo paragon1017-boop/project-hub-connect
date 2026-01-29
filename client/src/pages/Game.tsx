@@ -1391,6 +1391,43 @@ export default function Game() {
 
         {/* CENTER COLUMN: Viewport */}
         <div className="lg:col-span-8 order-1 lg:order-2">
+          {/* Settings button - above dungeon view */}
+          <div className="flex justify-end mb-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="bg-slate-800/90 hover:bg-slate-700 border border-amber-600/30 rounded-lg p-2 text-amber-400 hover:text-amber-300 transition-colors"
+                data-testid="button-settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              
+              {showSettings && (
+                <div className="absolute top-full right-0 mt-2 bg-slate-900/95 backdrop-blur-sm border border-amber-600/30 rounded-lg p-3 min-w-[180px] shadow-xl z-50">
+                  <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">GRAPHICS</div>
+                  {(['high', 'medium', 'low'] as GraphicsQuality[]).map((quality) => (
+                    <button
+                      key={quality}
+                      onClick={() => {
+                        setGraphicsQuality(quality);
+                        setShowSettings(false);
+                      }}
+                      className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                        graphicsQuality === quality 
+                          ? 'bg-amber-600/50 text-amber-200' 
+                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                      data-testid={`button-quality-${quality}`}
+                    >
+                      {RESOLUTION_PRESETS[quality].label}
+                      {graphicsQuality === quality && <span className="ml-2 text-amber-400">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
           <RetroCard className="p-1">
             <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
@@ -1462,41 +1499,6 @@ export default function Game() {
                   </div>
                 );
               })()}
-              
-              {/* Settings button - top right */}
-              <div className="absolute top-3 right-3 z-30">
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="bg-black/70 hover:bg-black/90 backdrop-blur-sm border border-white/20 rounded-lg p-2 text-amber-400 hover:text-amber-300 transition-colors"
-                  data-testid="button-settings"
-                >
-                  <Settings className="w-5 h-5" />
-                </button>
-                
-                {showSettings && (
-                  <div className="absolute top-full right-0 mt-2 bg-black/90 backdrop-blur-sm border border-white/20 rounded-lg p-3 min-w-[180px] shadow-xl">
-                    <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">GRAPHICS</div>
-                    {(['high', 'medium', 'low'] as GraphicsQuality[]).map((quality) => (
-                      <button
-                        key={quality}
-                        onClick={() => {
-                          setGraphicsQuality(quality);
-                          setShowSettings(false);
-                        }}
-                        className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                          graphicsQuality === quality 
-                            ? 'bg-amber-600/50 text-amber-200' 
-                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                        }`}
-                        data-testid={`button-quality-${quality}`}
-                      >
-                        {RESOLUTION_PRESETS[quality].label}
-                        {graphicsQuality === quality && <span className="ml-2 text-amber-400">✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               
               {/* Monster overlay during combat */}
               {combatState.active && combatState.monsters.length > 0 && (
