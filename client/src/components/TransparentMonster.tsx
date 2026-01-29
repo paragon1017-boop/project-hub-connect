@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
+export type MonsterAnimationState = 'idle' | 'attack' | 'hit' | 'death' | 'entrance';
+
 interface TransparentMonsterProps {
   src: string;
   alt: string;
   className?: string;
+  animationState?: MonsterAnimationState;
+  isFlying?: boolean;
 }
 
-export function TransparentMonster({ src, alt, className }: TransparentMonsterProps) {
+export function TransparentMonster({ src, alt, className, animationState = 'idle', isFlying = false }: TransparentMonsterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -209,10 +213,27 @@ export function TransparentMonster({ src, alt, className }: TransparentMonsterPr
     img.src = src;
   }, [src]);
 
+  // Determine animation class based on state
+  const getAnimationClass = () => {
+    switch (animationState) {
+      case 'attack':
+        return 'monster-attack';
+      case 'hit':
+        return 'monster-hit';
+      case 'death':
+        return 'monster-death';
+      case 'entrance':
+        return 'monster-entrance';
+      case 'idle':
+      default:
+        return isFlying ? 'monster-float' : 'monster-breathe';
+    }
+  };
+
   return (
     <canvas 
       ref={canvasRef} 
-      className={className}
+      className={`${className || ''} ${getAnimationClass()}`}
       style={{ 
         opacity: loaded ? 1 : 0,
         transition: 'opacity 0.3s ease-in'

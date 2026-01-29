@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGameState, useSaveGame } from "@/hooks/use-game";
 import { DungeonView } from "@/components/DungeonView";
 import dungeonWallBg from "@assets/Gemini_Generated_Image_8w52n78w52n78w52_1769494784513.png";
-import { TransparentMonster } from "@/components/TransparentMonster";
+import { TransparentMonster, MonsterAnimationState } from "@/components/TransparentMonster";
 import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
 import { 
   GameData, createInitialState, 
@@ -47,6 +47,21 @@ export default function Game() {
     turnOrderPosition: number,  // Current position in turnOrder
     defending: boolean 
   }>({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+  const [monsterAnimations, setMonsterAnimations] = useState<{ [key: number]: MonsterAnimationState }>({});
+  
+  // Helper to check if monster is flying type
+  const isFlying = (name: string) => {
+    const flyingMonsters = ['cave bat', 'shadow wisp', 'harpy', 'wraith', 'gargoyle'];
+    return flyingMonsters.some(f => name.toLowerCase().includes(f));
+  };
+  
+  // Trigger monster animation
+  const triggerMonsterAnimation = (monsterIndex: number, state: MonsterAnimationState, duration: number = 600) => {
+    setMonsterAnimations(prev => ({ ...prev, [monsterIndex]: state }));
+    setTimeout(() => {
+      setMonsterAnimations(prev => ({ ...prev, [monsterIndex]: 'idle' }));
+    }, duration);
+  };
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showEquipment, setShowEquipment] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -159,6 +174,14 @@ export default function Game() {
         turnOrderPosition: 0,
         defending: false 
       });
+      
+      // Trigger entrance animation for all monsters
+      monsters.forEach((_, idx) => {
+        setTimeout(() => {
+          triggerMonsterAnimation(idx, 'entrance', 800);
+        }, idx * 150);
+      });
+      
       if (monsterCount === 1) {
         log(`A wild ${monsters[0].name} appeared!`);
       } else {
@@ -552,7 +575,8 @@ export default function Game() {
     // Sort alive monsters by speed (fastest attacks first)
     const sortedMonsters = [...updatedMonsters].filter(m => m.hp > 0).sort((a, b) => b.speed - a.speed);
     
-    for (const monster of sortedMonsters) {
+    for (let i = 0; i < sortedMonsters.length; i++) {
+      const monster = sortedMonsters[i];
       const aliveMembersNow = newParty.filter(c => c.hp > 0);
       if (aliveMembersNow.length === 0) break;
       
@@ -561,6 +585,15 @@ export default function Game() {
       const targetStats = getEffectiveStats(target);
       const defenseMultiplier = defendingActive ? 2 : 1;
       const monsterDmg = Math.max(1, Math.floor(monster.attack - (targetStats.defense * defenseMultiplier / 2)));
+      
+      // Find original index of this monster for animation
+      const originalIdx = updatedMonsters.findIndex(m => m.name === monster.name && m.hp === monster.hp);
+      if (originalIdx >= 0) {
+        // Stagger animations for multiple monsters
+        setTimeout(() => {
+          triggerMonsterAnimation(originalIdx, 'attack', 600);
+        }, i * 200);
+      }
       
       newParty = newParty.map(c => 
         c.id === target.id ? { ...c, hp: Math.max(0, c.hp - monsterDmg) } : c
@@ -638,6 +671,8 @@ export default function Game() {
         const damage = Math.max(1, Math.floor(charStats.attack * scaledPower - (targetMonster.defense / 2)));
         newMonsters[combatState.targetIndex] = { ...targetMonster, hp: targetMonster.hp - damage };
         log(`${char.name} uses ${ability.name} on ${targetMonster.name}! ${damage} damage!`);
+        // Trigger hit animation on monster
+        triggerMonsterAnimation(combatState.targetIndex, 'hit', 500);
         break;
       }
       case 'heal': {
@@ -673,6 +708,8 @@ export default function Game() {
     // Check if targeted monster is defeated
     if (newMonsters[combatState.targetIndex].hp <= 0) {
       log(`Defeated ${targetMonster.name}!`);
+      // Trigger death animation
+      triggerMonsterAnimation(combatState.targetIndex, 'death', 1200);
     }
     
     // Check for total victory (all monsters defeated)
@@ -1449,6 +1486,8 @@ export default function Game() {
                                   combatState.monsters.length === 1 ? 'w-72 h-72' :
                                   combatState.monsters.length === 2 ? 'w-52 h-52' : 'w-40 h-40'
                                 }`}
+                                animationState={monsterAnimations[idx] || 'idle'}
+                                isFlying={isFlying(monster.name)}
                               />
                               {/* Ground shadow beneath monster */}
                               <div 
