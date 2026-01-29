@@ -8,7 +8,7 @@ interface DungeonViewProps {
 
 export function DungeonView({ gameData, className }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null }>({ wall: null, floor: null });
+  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, door: null });
 
   // Load textures once
   useEffect(() => {
@@ -16,9 +16,12 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
     wallImg.src = "/assets/textures/wall_stone.jpg";
     const floorImg = new Image();
     floorImg.src = "/assets/textures/floor_cobble.jpg";
+    const doorImg = new Image();
+    doorImg.src = "/assets/textures/door_metal.png";
 
     wallImg.onload = () => { texturesRef.current.wall = wallImg; draw(); };
     floorImg.onload = () => { texturesRef.current.floor = floorImg; draw(); };
+    doorImg.onload = () => { texturesRef.current.door = doorImg; draw(); };
   }, []);
 
   // Redraw when game data changes
@@ -481,84 +484,36 @@ export function DungeonView({ gameData, className }: DungeonViewProps) {
          const fog = Math.min(1, 4.0 / perpWallDist); 
          
          if (isDoor) {
-           // Draw rusty metal door
+           // Draw metal door using texture
            const doorHeight = drawEnd - drawStart;
-           const doorWidth = 2;
+           const doorTex = texturesRef.current.door;
            
-           // Base metal color (dark gray with rust tint)
-           const metalBaseR = side === 1 ? 70 : 85;
-           const metalBaseG = side === 1 ? 55 : 65;
-           const metalBaseB = side === 1 ? 50 : 58;
-           
-           // Draw metal texture with rust patches
-           for (let dy = 0; dy < doorHeight; dy++) {
-             const worldY = drawStart + dy;
-             // Create rust pattern using noise
-             const rustNoise1 = Math.sin(dy * 0.15 + wallX * 25) * Math.cos(dy * 0.08 + wallX * 15);
-             const rustNoise2 = Math.sin(dy * 0.25 + wallX * 40) * 0.5;
-             const rustAmount = (rustNoise1 + rustNoise2 + 1) * 0.5;
+           if (doorTex) {
+             // Sample from door texture (similar to wall rendering)
+             const doorTexX = Math.floor(wallX * doorTex.width);
              
-             // Blend between metal gray and rust orange/brown
-             const rustR = 140 + (dy * 0.3) % 20;
-             const rustG = 60 + (dy * 0.2) % 15;
-             const rustB = 30 + (dy * 0.1) % 10;
-             
-             const r = Math.min(255, Math.max(0, metalBaseR + (rustR - metalBaseR) * rustAmount * 0.6));
-             const g = Math.min(255, Math.max(0, metalBaseG + (rustG - metalBaseG) * rustAmount * 0.4));
-             const b = Math.min(255, Math.max(0, metalBaseB + (rustB - metalBaseB) * rustAmount * 0.3));
-             
-             ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-             ctx.fillRect(x, worldY, doorWidth, 1);
-           }
-           
-           // Vertical seams (riveted metal panels - 2 panels)
-           const panelPos = wallX * 2;
-           const panelEdge = panelPos - Math.floor(panelPos);
-           if (panelEdge < 0.06 || panelEdge > 0.94) {
-             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-             ctx.fillRect(x, drawStart, doorWidth, doorHeight);
-           }
-           
-           // Horizontal reinforcement bands with rivets (3 bands)
-           const bandSpacing = doorHeight / 4;
-           for (let band = 1; band <= 3; band++) {
-             const bandY = drawStart + band * bandSpacing;
-             // Dark metal band
-             ctx.fillStyle = '#2a2520';
-             ctx.fillRect(x, bandY - 3, doorWidth, 6);
-             // Lighter center with rust
-             ctx.fillStyle = '#4a3830';
-             ctx.fillRect(x, bandY - 1, doorWidth, 2);
-             
-             // Rivets on the bands
-             if ((wallX > 0.08 && wallX < 0.12) || (wallX > 0.88 && wallX < 0.92) ||
-                 (wallX > 0.48 && wallX < 0.52)) {
-               ctx.fillStyle = '#5a4a40';
-               ctx.fillRect(x, bandY - 2, doorWidth, 4);
-               ctx.fillStyle = '#6a5a4a';
-               ctx.fillRect(x, bandY - 1, doorWidth, 2);
+             // Apply side shading (darker on one side for depth)
+             if (side === 1) {
+               ctx.globalAlpha = 0.85;
              }
-           }
-           
-           // Heavy metal door handle/latch (rusty iron ring)
-           if (wallX > 0.68 && wallX < 0.82) {
-             const handleY = drawStart + doorHeight * 0.5;
-             // Handle plate (darker, rusted)
-             ctx.fillStyle = '#3a2a20';
-             ctx.fillRect(x, handleY - 8, doorWidth, 16);
-             // Ring handle
-             if (wallX > 0.72 && wallX < 0.78) {
-               ctx.fillStyle = '#5a4030';
-               ctx.fillRect(x, handleY - 6, doorWidth, 12);
-               ctx.fillStyle = '#6a5040';
-               ctx.fillRect(x, handleY - 3, doorWidth, 6);
-             }
+             
+             ctx.drawImage(
+               doorTex,
+               doorTexX, 0, 1, doorTex.height,
+               x, drawStart, 2, doorHeight
+             );
+             
+             ctx.globalAlpha = 1.0;
+           } else {
+             // Fallback solid color if texture not loaded
+             ctx.fillStyle = side === 1 ? '#3a4a50' : '#4a5a60';
+             ctx.fillRect(x, drawStart, 2, doorHeight);
            }
            
            // Apply fog to door
            ctx.globalAlpha = 1 - fog;
            ctx.fillStyle = "#000";
-           ctx.fillRect(x, drawStart, doorWidth, doorHeight);
+           ctx.fillRect(x, drawStart, 2, doorHeight);
            ctx.globalAlpha = 1.0;
          } else {
            // Draw regular wall slice
