@@ -1708,6 +1708,17 @@ export default function Game() {
           </div>
           )}
           
+          {/* Message Log - Top of screen, newest first scrolling down */}
+          {!isCombatFullscreen && (
+            <div className="h-24 bg-gradient-to-b from-black/90 to-black/60 border-b border-white/10 p-3 text-sm overflow-hidden flex flex-col justify-start mb-2 rounded-lg" data-testid="panel-message-log">
+              {logs.map((msg, i) => (
+                <div key={i} className={`transition-opacity ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.2 }}>
+                  {i === 0 ? '▸ ' : '  '}{msg}
+                </div>
+              ))}
+            </div>
+          )}
+          
           <RetroCard className={`${isCombatFullscreen ? 'h-full rounded-none border-0 bg-transparent' : 'p-1'}`}>
             <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
@@ -1973,16 +1984,7 @@ export default function Game() {
               )}
             </div>
             
-            {/* Message Log */}
-            <div className="h-32 bg-gradient-to-t from-black/90 to-black/60 border-t border-white/10 p-4 text-base overflow-hidden flex flex-col justify-end">
-              {logs.map((msg, i) => (
-                <div key={i} className={`transition-opacity ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.2 }}>
-                  {i === 0 ? '▸ ' : '  '}{msg}
-                </div>
-              ))}
-            </div>
-            
-          </RetroCard>
+            </RetroCard>
         </div>
 
         {/* RIGHT COLUMN: Party Stats - hide during combat fullscreen */}
