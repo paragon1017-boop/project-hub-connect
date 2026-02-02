@@ -959,7 +959,7 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className={`${isCombatFullscreen ? 'fixed inset-0 z-50' : 'min-h-screen p-4 md:p-8'} flex items-center justify-center relative overflow-hidden outline-none bg-black transition-all duration-300`}>
+      className={`${isCombatFullscreen ? 'fixed inset-0 z-50' : 'h-screen w-screen'} flex items-center justify-center relative overflow-hidden outline-none bg-black transition-all duration-300`}>
       {/* Stone wall background with grayscale filter */}
       <div 
         className="absolute inset-0 pointer-events-none"

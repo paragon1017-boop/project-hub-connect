@@ -36,6 +36,10 @@
 }
 
 @layer base {
+  html, body, #root {
+    @apply h-full w-full overflow-hidden;
+  }
+  
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-retro);
