@@ -1081,7 +1081,7 @@ export default function Game() {
         
         {/* LEFT COLUMN: Commands & Equipment - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-2 space-y-2 order-2 lg:order-1">
+        <div className="lg:col-span-2 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-2rem)] pr-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
@@ -1809,11 +1809,11 @@ export default function Game() {
                     <div className="absolute inset-0 z-[6] pointer-events-none border-[4px] border-red-500/30 animate-pulse" />
                   )}
                   
-                  {/* Multiple monsters positioned side by side - SCALED UP for fullscreen */}
+                  {/* Multiple monsters positioned side by side - SCALED for fullscreen with room for UI */}
                   <div className={`absolute inset-0 z-10 flex items-center justify-center pointer-events-none ${
-                    isCombatFullscreen ? 'pb-24' : 'pb-16'
+                    isCombatFullscreen ? 'pb-40 pt-4' : 'pb-16'
                   }`}>
-                    <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-6' : 'gap-2'} animate-in fade-in zoom-in duration-300`}>
+                    <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-4' : 'gap-2'} animate-in fade-in zoom-in duration-300`}>
                       {combatState.monsters.map((monster, idx) => (
                         <div 
                           key={monster.id} 
@@ -1836,11 +1836,11 @@ export default function Game() {
                                 alt={monster.name} 
                                 className={`object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.9)] ${
                                   isCombatFullscreen 
-                                    ? combatState.monsters.length === 1 ? 'w-72 h-72 md:w-80 md:h-80 lg:w-96 lg:h-96' :
-                                      combatState.monsters.length === 2 ? 'w-56 h-56 md:w-64 md:h-64 lg:w-72 lg:h-72' : 
-                                      combatState.monsters.length === 3 ? 'w-44 h-44 md:w-52 md:h-52 lg:w-56 lg:h-56' : 'w-40 h-40 md:w-44 md:h-44 lg:w-48 lg:h-48'
-                                    : combatState.monsters.length === 1 ? 'w-72 h-72' :
-                                      combatState.monsters.length === 2 ? 'w-52 h-52' : 'w-40 h-40'
+                                    ? combatState.monsters.length === 1 ? 'w-48 h-48 md:w-56 md:h-56 lg:w-64 lg:h-64' :
+                                      combatState.monsters.length === 2 ? 'w-40 h-40 md:w-48 md:h-48 lg:w-52 lg:h-52' : 
+                                      combatState.monsters.length === 3 ? 'w-32 h-32 md:w-40 md:h-40 lg:w-44 lg:h-44' : 'w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36'
+                                    : combatState.monsters.length === 1 ? 'w-52 h-52' :
+                                      combatState.monsters.length === 2 ? 'w-40 h-40' : 'w-32 h-32'
                                 }`}
                                 animationState={monsterAnimations[idx] || 'idle'}
                                 isFlying={isFlying(monster.name)}
@@ -1849,21 +1849,21 @@ export default function Game() {
                               <div 
                                 className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
                                   isCombatFullscreen
-                                    ? combatState.monsters.length === 1 ? 'w-72 h-10' :
-                                      combatState.monsters.length === 2 ? 'w-56 h-8' : 'w-40 h-6'
-                                    : combatState.monsters.length === 1 ? 'w-52 h-8' :
-                                      combatState.monsters.length === 2 ? 'w-36 h-6' : 'w-28 h-5'
+                                    ? combatState.monsters.length === 1 ? 'w-48 h-8' :
+                                      combatState.monsters.length === 2 ? 'w-40 h-6' : 'w-28 h-5'
+                                    : combatState.monsters.length === 1 ? 'w-40 h-6' :
+                                      combatState.monsters.length === 2 ? 'w-28 h-5' : 'w-24 h-4'
                                 }`}
-                                style={{ transform: 'translateX(-50%) translateY(12px)' }}
+                                style={{ transform: 'translateX(-50%) translateY(8px)' }}
                               />
                             </>
                           ) : (
                             <Skull className={`text-red-500 drop-shadow-lg ${
                               isCombatFullscreen 
-                                ? combatState.monsters.length === 1 ? 'w-56 h-56' :
-                                  combatState.monsters.length === 2 ? 'w-44 h-44' : 'w-32 h-32'
-                                : combatState.monsters.length === 1 ? 'w-40 h-40' :
-                                  combatState.monsters.length === 2 ? 'w-28 h-28' : 'w-20 h-20'
+                                ? combatState.monsters.length === 1 ? 'w-40 h-40' :
+                                  combatState.monsters.length === 2 ? 'w-32 h-32' : 'w-24 h-24'
+                                : combatState.monsters.length === 1 ? 'w-32 h-32' :
+                                  combatState.monsters.length === 2 ? 'w-24 h-24' : 'w-20 h-20'
                             }`} />
                           )}
                         </div>
@@ -1989,7 +1989,7 @@ export default function Game() {
 
         {/* RIGHT COLUMN: Party Stats - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-2 order-3">
+        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-2rem)] pl-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="PARTY STATUS" className="h-full space-y-3">
             {game.party.map((char, idx) => {
               const isCurrentTurn = combatState.active && idx === combatState.currentCharIndex && char.hp > 0;
