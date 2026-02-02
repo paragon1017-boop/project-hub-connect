@@ -231,13 +231,23 @@ export function TransparentMonster({ src, alt, className, animationState = 'idle
   };
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      className={`${className || ''} ${getAnimationClass()}`}
-      style={{ 
-        opacity: loaded ? 1 : 0,
-        transition: 'opacity 0.3s ease-in'
-      }}
-    />
+    <div className="relative inline-block">
+      <canvas 
+        ref={canvasRef} 
+        className={`${className || ''} ${getAnimationClass()}`}
+        style={{ 
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 0.3s ease-in'
+        }}
+      />
+      {/* Gradient fade at bottom to hide feet */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: '25%',
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,1) 100%)'
+        }}
+      />
+    </div>
   );
 }
