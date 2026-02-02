@@ -1081,7 +1081,7 @@ export default function Game() {
         
         {/* LEFT COLUMN: Commands & Party Stats stacked - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-6rem)] pr-1" style={{ scrollbarWidth: 'thin' }}>
+        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-6rem)] pr-1 pt-20" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
@@ -2019,7 +2019,7 @@ export default function Game() {
 
         {/* RIGHT COLUMN: Message Log - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-6rem)] pl-1" style={{ scrollbarWidth: 'thin' }}>
+        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-6rem)] pl-1 pt-20" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="LOG" className="h-full">
             <div className="space-y-1 text-xs" data-testid="panel-message-log">
               {logs.map((msg, i) => (
