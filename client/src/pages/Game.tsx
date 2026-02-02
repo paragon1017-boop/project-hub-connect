@@ -1080,7 +1080,7 @@ export default function Game() {
         <div className={`${isCombatFullscreen ? 'h-full grid grid-cols-1 lg:grid-cols-12 gap-0' : 'grid grid-cols-1 lg:grid-cols-12 gap-3'}`}>
         
         {/* LEFT COLUMN: Commands & Party Stats stacked - hide during combat fullscreen */}
-        {!isCombatFullscreen && (
+        {!isCombatFullscreen && false && (
         <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-5rem)] pr-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
@@ -1704,8 +1704,8 @@ export default function Game() {
         </div>
         )}
 
-        {/* CENTER COLUMN: Viewport - full width during combat */}
-        <div className={`${isCombatFullscreen ? 'lg:col-span-12 h-full' : 'lg:col-span-7'} order-1 lg:order-2`}>
+        {/* CENTER COLUMN: Viewport - full width */}
+        <div className={`${isCombatFullscreen ? 'lg:col-span-12 h-full' : 'lg:col-span-12'} order-1 lg:order-2`}>
           {/* Settings and Fullscreen buttons - above dungeon view - hide during combat */}
           {!isCombatFullscreen && (
           <div className="flex justify-end gap-2 mb-2">
@@ -2018,7 +2018,7 @@ export default function Game() {
         </div>
 
         {/* RIGHT COLUMN: Message Log - hide during combat fullscreen */}
-        {!isCombatFullscreen && (
+        {!isCombatFullscreen && false && (
         <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-5rem)] pl-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="LOG" className="h-full">
             <div className="space-y-1 text-xs" data-testid="panel-message-log">
