@@ -1,0 +1,6 @@
+Character: 100 base HP, 6 Aegis Guardian pieces
+- Gains: +30 HP, +30 shield (130 total, 160 with shield)
+- While fighting: 20% chance all enemies attack only you
+- Shield takes 40 damage: Breaks, you take 10 HP damage
+- Result: Team healed by 30 HP, taunt removed
+- Now: You have 120 HP, no shield, no taunt
