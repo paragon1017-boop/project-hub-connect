@@ -1710,9 +1710,9 @@ export default function Game() {
           
           {/* Message Log - Top of screen, newest first scrolling down */}
           {!isCombatFullscreen && (
-            <div className="h-16 bg-gradient-to-b from-black/90 to-black/60 border-b border-white/10 p-2 text-xs overflow-hidden flex flex-col justify-start mb-1 rounded-lg" data-testid="panel-message-log">
-              {logs.slice(0, 3).map((msg, i) => (
-                <div key={i} className={`transition-opacity truncate ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.25 }}>
+            <div className="h-20 bg-gradient-to-b from-black/90 to-black/60 border-b border-white/10 p-2 text-xs overflow-y-auto mb-1 rounded-lg" style={{ scrollbarWidth: 'thin' }} data-testid="panel-message-log">
+              {logs.map((msg, i) => (
+                <div key={i} className={`transition-opacity ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.15 }}>
                   {i === 0 ? '▸ ' : '  '}{msg}
                 </div>
               ))}
