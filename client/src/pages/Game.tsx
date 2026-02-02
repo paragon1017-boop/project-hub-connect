@@ -1076,12 +1076,12 @@ export default function Game() {
         </>
       )}
       
-      <div className={`${isCombatFullscreen ? 'w-full h-full p-0' : 'max-w-6xl w-full pt-12 pb-4 px-2'} relative z-10 transition-all duration-300`}>
+      <div className={`${isCombatFullscreen ? 'w-full h-full p-0' : 'max-w-6xl w-full pt-16 pb-4 px-2'} relative z-10 transition-all duration-300`}>
         <div className={`${isCombatFullscreen ? 'h-full grid grid-cols-1 lg:grid-cols-12 gap-0' : 'grid grid-cols-1 lg:grid-cols-12 gap-3'}`}>
         
         {/* LEFT COLUMN: Commands & Party Stats stacked - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-5rem)] pr-1" style={{ scrollbarWidth: 'thin' }}>
+        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-6rem)] pr-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
@@ -2019,7 +2019,7 @@ export default function Game() {
 
         {/* RIGHT COLUMN: Message Log - hide during combat fullscreen */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-5rem)] pl-1" style={{ scrollbarWidth: 'thin' }}>
+        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-6rem)] pl-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="LOG" className="h-full">
             <div className="space-y-1 text-xs" data-testid="panel-message-log">
               {logs.map((msg, i) => (
