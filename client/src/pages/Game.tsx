@@ -79,6 +79,7 @@ export default function Game() {
   const [helpFilter, setHelpFilter] = useState<string>('all');
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('high');
   const [showSettings, setShowSettings] = useState(false);
+  const [isCombatFullscreen, setIsCombatFullscreen] = useState(false);
   const [selectedCharForEquip, setSelectedCharForEquip] = useState(0);
   const [selectedCharForStats, setSelectedCharForStats] = useState(0);
   const [selectedCharForPotion, setSelectedCharForPotion] = useState(0);
@@ -233,6 +234,7 @@ export default function Game() {
         turnOrderPosition: 0,
         defending: false 
       });
+      setIsCombatFullscreen(true);
       
       // Trigger entrance animation for all monsters
       monsters.forEach((_, idx) => {
@@ -386,6 +388,16 @@ export default function Game() {
   
   // Toggle mini map
   useKey('m', () => setShowMiniMap(prev => !prev), {}, []);
+  
+  // ESC key to flee combat (inline to avoid reference issues)
+  useKey('Escape', () => {
+    if (combatActiveRef.current) {
+      (document.activeElement as HTMLElement)?.blur();
+      setLogs(prev => ["You fled from battle!", ...prev].slice(0, 5));
+      setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+      setIsCombatFullscreen(false);
+    }
+  }, {}, []);
   
   // Out-of-combat Heal All skill (H key)
   const healAllParty = useCallback(() => {
@@ -875,6 +887,7 @@ export default function Game() {
       }
       
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+      setIsCombatFullscreen(false);
       setTimeout(() => awardXP(totalXp), 100);
       return;
     }
@@ -920,6 +933,7 @@ export default function Game() {
     (document.activeElement as HTMLElement)?.blur();
     log("You fled from battle!");
     setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+    setIsCombatFullscreen(false);
   };
 
   if (isLoading || !game) {
@@ -935,7 +949,7 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className="min-h-screen p-4 md:p-8 flex items-center justify-center relative overflow-hidden outline-none bg-black">
+      className={`${isCombatFullscreen ? 'fixed inset-0 z-50' : 'min-h-screen p-4 md:p-8'} flex items-center justify-center relative overflow-hidden outline-none bg-black transition-all duration-300`}>
       {/* Stone wall background with grayscale filter */}
       <div 
         className="absolute inset-0 pointer-events-none"
@@ -944,65 +958,91 @@ export default function Game() {
           backgroundSize: '400px',
           backgroundRepeat: 'repeat',
           backgroundPosition: 'center',
-          filter: 'grayscale(100%) brightness(0.35) contrast(1.1)'
+          filter: 'grayscale(100%) brightness(0.35) contrast(1.1)',
+          transform: isCombatFullscreen ? 'scale(1.1)' : 'scale(1)',
+          transition: 'transform 300ms ease-out'
         }} 
       />
-      {/* Vignette effect */}
+      {/* Vignette effect - stronger during combat */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)'
+        background: isCombatFullscreen 
+          ? 'radial-gradient(ellipse at center, transparent 10%, rgba(0,0,0,0.9) 100%)'
+          : 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)',
+        transition: 'background 300ms ease-out'
       }} />
-      {/* Torch glow effects */}
+      {/* Torch glow effects - enhanced during combat */}
       <div className="absolute top-0 left-0 w-64 h-80 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top left, rgba(255,150,50,0.2) 0%, transparent 60%)'
+        background: 'radial-gradient(ellipse at top left, rgba(255,150,50,0.3) 0%, transparent 60%)',
+        opacity: isCombatFullscreen ? 0.8 : 0.2,
+        transition: 'opacity 300ms ease-out'
       }} />
       <div className="absolute top-0 right-0 w-64 h-80 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top right, rgba(255,150,50,0.2) 0%, transparent 60%)'
+        background: 'radial-gradient(ellipse at top right, rgba(255,150,50,0.3) 0%, transparent 60%)',
+        opacity: isCombatFullscreen ? 0.8 : 0.2,
+        transition: 'opacity 300ms ease-out'
       }} />
       
-      {/* Slime decorations */}
-      {/* Green slime pool - bottom left */}
-      <div className="absolute bottom-[15%] left-[8%] w-20 h-10 pointer-events-none opacity-60" style={{
-        background: 'radial-gradient(ellipse at center, rgba(80,180,80,0.5) 0%, rgba(50,120,50,0.3) 50%, transparent 70%)',
-        borderRadius: '50%',
-        filter: 'blur(2px)'
-      }} />
-      {/* Purple slime drip - top left */}
-      <div className="absolute top-[25%] left-[5%] w-3 h-16 pointer-events-none opacity-50" style={{
-        background: 'linear-gradient(180deg, rgba(140,80,180,0.6) 0%, rgba(100,50,140,0.4) 60%, transparent 100%)',
-        borderRadius: '0 0 50% 50%',
-        filter: 'blur(1px)'
-      }} />
-      {/* Green slime drops - right side */}
-      <div className="absolute top-[40%] right-[6%] w-4 h-4 pointer-events-none opacity-50" style={{
-        background: 'radial-gradient(circle, rgba(100,200,100,0.6) 0%, transparent 70%)',
-        borderRadius: '50%'
-      }} />
-      <div className="absolute top-[45%] right-[7%] w-2 h-2 pointer-events-none opacity-40" style={{
-        background: 'radial-gradient(circle, rgba(80,160,80,0.5) 0%, transparent 70%)',
-        borderRadius: '50%'
-      }} />
-      {/* Purple slime pool - bottom right */}
-      <div className="absolute bottom-[20%] right-[10%] w-16 h-8 pointer-events-none opacity-50" style={{
-        background: 'radial-gradient(ellipse at center, rgba(120,60,160,0.5) 0%, rgba(80,40,120,0.3) 50%, transparent 70%)',
-        borderRadius: '50%',
-        filter: 'blur(2px)'
-      }} />
-      {/* Green slime line - left side */}
-      <div className="absolute top-[55%] left-[3%] w-2 h-24 pointer-events-none opacity-40" style={{
-        background: 'linear-gradient(180deg, transparent 0%, rgba(70,150,70,0.4) 20%, rgba(90,180,90,0.5) 50%, rgba(60,130,60,0.3) 80%, transparent 100%)',
-        borderRadius: '50%',
-        filter: 'blur(1px)'
-      }} />
-      {/* Small purple drops */}
-      <div className="absolute bottom-[35%] left-[12%] w-3 h-3 pointer-events-none opacity-45" style={{
-        background: 'radial-gradient(circle, rgba(150,90,190,0.5) 0%, transparent 70%)',
-        borderRadius: '50%'
-      }} />
+      {/* Combat exit button (only shown during combat fullscreen) */}
+      {isCombatFullscreen && (
+        <RetroButton
+          onClick={handleRun}
+          variant="danger"
+          className="absolute top-4 right-4 z-50"
+          data-testid="button-flee-combat"
+        >
+          FLEE (ESC)
+        </RetroButton>
+      )}
       
-      <div className="max-w-5xl w-full relative z-10 space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* Slime decorations - hide during combat */}
+      {!isCombatFullscreen && (
+        <>
+          {/* Green slime pool - bottom left */}
+          <div className="absolute bottom-[15%] left-[8%] w-20 h-10 pointer-events-none opacity-60" style={{
+            background: 'radial-gradient(ellipse at center, rgba(80,180,80,0.5) 0%, rgba(50,120,50,0.3) 50%, transparent 70%)',
+            borderRadius: '50%',
+            filter: 'blur(2px)'
+          }} />
+          {/* Purple slime drip - top left */}
+          <div className="absolute top-[25%] left-[5%] w-3 h-16 pointer-events-none opacity-50" style={{
+            background: 'linear-gradient(180deg, rgba(140,80,180,0.6) 0%, rgba(100,50,140,0.4) 60%, transparent 100%)',
+            borderRadius: '0 0 50% 50%',
+            filter: 'blur(1px)'
+          }} />
+          {/* Green slime drops - right side */}
+          <div className="absolute top-[40%] right-[6%] w-4 h-4 pointer-events-none opacity-50" style={{
+            background: 'radial-gradient(circle, rgba(100,200,100,0.6) 0%, transparent 70%)',
+            borderRadius: '50%'
+          }} />
+          <div className="absolute top-[45%] right-[7%] w-2 h-2 pointer-events-none opacity-40" style={{
+            background: 'radial-gradient(circle, rgba(80,160,80,0.5) 0%, transparent 70%)',
+            borderRadius: '50%'
+          }} />
+          {/* Purple slime pool - bottom right */}
+          <div className="absolute bottom-[20%] right-[10%] w-16 h-8 pointer-events-none opacity-50" style={{
+            background: 'radial-gradient(ellipse at center, rgba(120,60,160,0.5) 0%, rgba(80,40,120,0.3) 50%, transparent 70%)',
+            borderRadius: '50%',
+            filter: 'blur(2px)'
+          }} />
+          {/* Green slime line - left side */}
+          <div className="absolute top-[55%] left-[3%] w-2 h-24 pointer-events-none opacity-40" style={{
+            background: 'linear-gradient(180deg, transparent 0%, rgba(70,150,70,0.4) 20%, rgba(90,180,90,0.5) 50%, rgba(60,130,60,0.3) 80%, transparent 100%)',
+            borderRadius: '50%',
+            filter: 'blur(1px)'
+          }} />
+          {/* Small purple drops */}
+          <div className="absolute bottom-[35%] left-[12%] w-3 h-3 pointer-events-none opacity-45" style={{
+            background: 'radial-gradient(circle, rgba(150,90,190,0.5) 0%, transparent 70%)',
+            borderRadius: '50%'
+          }} />
+        </>
+      )}
+      
+      <div className={`${isCombatFullscreen ? 'w-full h-full p-0' : 'max-w-5xl w-full'} relative z-10 space-y-4 transition-all duration-300`}>
+        <div className={`${isCombatFullscreen ? 'h-full grid grid-cols-1 lg:grid-cols-12 gap-0' : 'grid grid-cols-1 lg:grid-cols-12 gap-4'}`}>
         
-        {/* LEFT COLUMN: Commands & Equipment */}
+        {/* LEFT COLUMN: Commands & Equipment - hide during combat fullscreen */}
+        {!isCombatFullscreen && (
         <div className="lg:col-span-2 space-y-2 order-2 lg:order-1">
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
@@ -1587,10 +1627,12 @@ export default function Game() {
             </div>
           )}
         </div>
+        )}
 
-        {/* CENTER COLUMN: Viewport */}
-        <div className="lg:col-span-8 order-1 lg:order-2">
-          {/* Settings button - above dungeon view */}
+        {/* CENTER COLUMN: Viewport - full width during combat */}
+        <div className={`${isCombatFullscreen ? 'lg:col-span-12 h-full' : 'lg:col-span-8'} order-1 lg:order-2`}>
+          {/* Settings button - above dungeon view - hide during combat */}
+          {!isCombatFullscreen && (
           <div className="flex justify-end mb-2">
             <div className="relative">
               <button
@@ -1626,8 +1668,9 @@ export default function Game() {
               )}
             </div>
           </div>
+          )}
           
-          <RetroCard className="p-1">
+          <RetroCard className={`${isCombatFullscreen ? 'h-full rounded-none border-0 bg-transparent' : 'p-1'}`}>
             <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
               <DungeonView 
@@ -1637,8 +1680,8 @@ export default function Game() {
                 renderHeight={RESOLUTION_PRESETS[graphicsQuality].height}
               />
               
-              {/* Mini Map in top left (toggle with M key) - centered on player */}
-              {showMiniMap && (() => {
+              {/* Mini Map in top left (toggle with M key) - hide during combat fullscreen */}
+              {showMiniMap && !isCombatFullscreen && (() => {
                 const mapSize = 11; // Odd number so player is always centered
                 const halfSize = Math.floor(mapSize / 2);
                 const mapHeight = game.map.length;
@@ -1706,26 +1749,35 @@ export default function Game() {
                   <div 
                     className="absolute inset-0 z-[5] pointer-events-none animate-in fade-in duration-500"
                     style={{
-                      background: 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
+                      background: isCombatFullscreen 
+                        ? 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(100,0,0,0.2) 0%, rgba(50,0,0,0.5) 30%, rgba(0,0,0,0.9) 80%)'
+                        : 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
                     }}
                   />
                   
-                  {/* Multiple monsters positioned side by side */}
-                  <div className="absolute inset-0 z-10 flex items-end justify-center pointer-events-none pb-28">
-                    <div className="flex items-end justify-center gap-2 animate-in fade-in zoom-in duration-300">
+                  {/* Pulsing combat border effect - fullscreen only */}
+                  {isCombatFullscreen && (
+                    <div className="absolute inset-0 z-[6] pointer-events-none border-[4px] border-red-500/30 animate-pulse" />
+                  )}
+                  
+                  {/* Multiple monsters positioned side by side - SCALED UP for fullscreen */}
+                  <div className={`absolute inset-0 z-10 flex items-end justify-center pointer-events-none ${
+                    isCombatFullscreen ? 'pb-40' : 'pb-28'
+                  }`}>
+                    <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-6' : 'gap-2'} animate-in fade-in zoom-in duration-300`}>
                       {combatState.monsters.map((monster, idx) => (
                         <div 
                           key={monster.id} 
                           className={`relative cursor-pointer transition-all duration-200 ${
                             monster.hp <= 0 ? 'opacity-30 grayscale' : ''
-                          } ${idx === combatState.targetIndex && monster.hp > 0 ? 'scale-105' : 'scale-95'}`}
+                          } ${idx === combatState.targetIndex && monster.hp > 0 ? 'scale-110 z-20' : 'scale-95'}`}
                           onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
                           style={{ pointerEvents: 'auto' }}
                         >
                           {/* Target indicator */}
                           {idx === combatState.targetIndex && monster.hp > 0 && (
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce">
-                              <ChevronDown className="w-6 h-6" />
+                            <div className={`absolute ${isCombatFullscreen ? '-top-10' : '-top-6'} left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce z-30`}>
+                              <ChevronDown className={isCombatFullscreen ? 'w-8 h-8' : 'w-6 h-6'} />
                             </div>
                           )}
                           {monster.image ? (
@@ -1733,9 +1785,13 @@ export default function Game() {
                               <TransparentMonster 
                                 src={monster.image} 
                                 alt={monster.name} 
-                                className={`object-contain drop-shadow-[0_0_25px_rgba(0,0,0,0.9)] ${
-                                  combatState.monsters.length === 1 ? 'w-72 h-72' :
-                                  combatState.monsters.length === 2 ? 'w-52 h-52' : 'w-40 h-40'
+                                className={`object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.9)] ${
+                                  isCombatFullscreen 
+                                    ? combatState.monsters.length === 1 ? 'w-[400px] h-[400px]' :
+                                      combatState.monsters.length === 2 ? 'w-80 h-80' : 
+                                      combatState.monsters.length === 3 ? 'w-64 h-64' : 'w-52 h-52'
+                                    : combatState.monsters.length === 1 ? 'w-72 h-72' :
+                                      combatState.monsters.length === 2 ? 'w-52 h-52' : 'w-40 h-40'
                                 }`}
                                 animationState={monsterAnimations[idx] || 'idle'}
                                 isFlying={isFlying(monster.name)}
@@ -1743,22 +1799,81 @@ export default function Game() {
                               {/* Ground shadow beneath monster */}
                               <div 
                                 className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
-                                  combatState.monsters.length === 1 ? 'w-52 h-8' :
-                                  combatState.monsters.length === 2 ? 'w-36 h-6' : 'w-28 h-5'
+                                  isCombatFullscreen
+                                    ? combatState.monsters.length === 1 ? 'w-72 h-10' :
+                                      combatState.monsters.length === 2 ? 'w-56 h-8' : 'w-40 h-6'
+                                    : combatState.monsters.length === 1 ? 'w-52 h-8' :
+                                      combatState.monsters.length === 2 ? 'w-36 h-6' : 'w-28 h-5'
                                 }`}
                                 style={{ transform: 'translateX(-50%) translateY(12px)' }}
                               />
                             </>
                           ) : (
                             <Skull className={`text-red-500 drop-shadow-lg ${
-                              combatState.monsters.length === 1 ? 'w-40 h-40' :
-                              combatState.monsters.length === 2 ? 'w-28 h-28' : 'w-20 h-20'
+                              isCombatFullscreen 
+                                ? combatState.monsters.length === 1 ? 'w-56 h-56' :
+                                  combatState.monsters.length === 2 ? 'w-44 h-44' : 'w-32 h-32'
+                                : combatState.monsters.length === 1 ? 'w-40 h-40' :
+                                  combatState.monsters.length === 2 ? 'w-28 h-28' : 'w-20 h-20'
                             }`} />
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
+                  
+                  {/* Compact Party Stats overlay - left side during fullscreen combat */}
+                  {isCombatFullscreen && (
+                    <div className="absolute top-4 left-4 z-20 bg-black/80 backdrop-blur-sm rounded-lg border border-primary/30 p-3 space-y-2 min-w-[200px]" data-testid="panel-combat-party-stats">
+                      <div className="font-pixel text-xs text-primary mb-2">PARTY</div>
+                      {game.party.map((char, idx) => {
+                        const stats = getEffectiveStats(char);
+                        const isCurrentTurn = idx === combatState.currentCharIndex && char.hp > 0;
+                        return (
+                          <div 
+                            key={char.id}
+                            className={`p-2 rounded border transition-all ${
+                              isCurrentTurn 
+                                ? 'bg-primary/20 border-primary/50 shadow-md shadow-primary/30' 
+                                : char.hp <= 0 
+                                  ? 'bg-black/40 border-red-500/30 opacity-60' 
+                                  : 'bg-black/40 border-white/10'
+                            }`}
+                            data-testid={`card-combat-party-member-${idx}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-xs font-semibold ${isCurrentTurn ? 'text-primary' : char.hp <= 0 ? 'text-red-400 line-through' : 'text-white'}`} data-testid={`text-combat-party-name-${idx}`}>
+                                {char.name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">{char.job}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-red-400 w-6">HP</span>
+                                <div className="flex-1 h-1.5 bg-black/50 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-red-600 to-red-500 transition-all"
+                                    style={{ width: `${Math.max(0, (char.hp / stats.maxHp) * 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-red-300 w-12 text-right" data-testid={`text-combat-party-hp-${idx}`}>{char.hp}/{stats.maxHp}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-blue-400 w-6">MP</span>
+                                <div className="flex-1 h-1.5 bg-black/50 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-blue-600 to-blue-500 transition-all"
+                                    style={{ width: `${Math.max(0, (char.mp / stats.maxMp) * 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-blue-300 w-12 text-right" data-testid={`text-combat-party-mp-${idx}`}>{char.mp}/{stats.maxMp}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   
                   {/* Combat UI overlay at bottom */}
                   <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4">
@@ -1832,7 +1947,8 @@ export default function Game() {
           </RetroCard>
         </div>
 
-        {/* RIGHT COLUMN: Party Stats */}
+        {/* RIGHT COLUMN: Party Stats - hide during combat fullscreen */}
+        {!isCombatFullscreen && (
         <div className="lg:col-span-2 order-3">
           <RetroCard title="PARTY STATUS" className="h-full space-y-3">
             {game.party.map((char, idx) => {
@@ -1872,6 +1988,7 @@ export default function Game() {
             </div>
           </RetroCard>
         </div>
+        )}
         </div>
       </div>
       

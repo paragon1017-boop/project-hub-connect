@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule - Web Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: #1a1410;
+            overflow: hidden;
+        }
+
+        /* Stone wall background */
+        .dungeon-background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(90deg, rgba(0,0,0,0.8) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%),
+                linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.7) 100%),
+                repeating-linear-gradient(0deg, #2a2420 0px, #352d28 3px, #2a2420 6px),
+                repeating-linear-gradient(90deg, #2a2420 0px, #3d3530 5px, #2a2420 10px);
+            background-blend-mode: normal;
+        }
+
+        /* Stone texture overlay */
+        .stone-texture {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(60, 50, 45, 0.3) 0%, transparent 3%),
+                radial-gradient(circle at 80% 20%, rgba(50, 40, 35, 0.3) 0%, transparent 2%),
+                radial-gradient(circle at 40% 70%, rgba(55, 45, 40, 0.3) 0%, transparent 2.5%),
+                radial-gradient(circle at 90% 60%, rgba(45, 35, 30, 0.3) 0%, transparent 3%),
+                radial-gradient(circle at 15% 80%, rgba(50, 40, 35, 0.3) 0%, transparent 2%),
+                radial-gradient(circle at 60% 40%, rgba(55, 45, 40, 0.3) 0%, transparent 3.5%),
+                radial-gradient(circle at 70% 85%, rgba(48, 38, 33, 0.3) 0%, transparent 2%),
+                radial-gradient(circle at 30% 50%, rgba(52, 42, 37, 0.3) 0%, transparent 3%);
+            opacity: 0.8;
+        }
+
+        /* Dungeon archway */
+        .archway {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .archway::before {
+            content: '';
+            position: absolute;
+            width: 900px;
+            height: 95%;
+            border: 40px solid #1a1410;
+            border-bottom: none;
+            border-radius: 450px 450px 0 0;
+            box-shadow: 
+                inset 0 0 60px rgba(0, 0, 0, 0.9),
+                inset 0 20px 40px rgba(0, 0, 0, 0.7),
+                0 0 100px rgba(0, 0, 0, 0.8);
+            background: linear-gradient(180deg, 
+                rgba(26, 20, 16, 0.3) 0%, 
+                rgba(26, 20, 16, 0.5) 50%, 
+                rgba(26, 20, 16, 0.8) 100%);
+        }
+
+        /* Stone blocks on archway */
+        .archway::after {
+            content: '';
+            position: absolute;
+            width: 900px;
+            height: 95%;
+            border-radius: 450px 450px 0 0;
+            background-image: 
+                repeating-linear-gradient(90deg, 
+                    transparent 0px, 
+                    transparent 80px, 
+                    rgba(0, 0, 0, 0.3) 80px, 
+                    rgba(0, 0, 0, 0.3) 82px),
+                repeating-linear-gradient(0deg, 
+                    transparent 0px, 
+                    transparent 60px, 
+                    rgba(0, 0, 0, 0.3) 60px, 
+                    rgba(0, 0, 0, 0.3) 62px);
+            pointer-events: none;
+        }
+
+        /* Stone brick pattern on sides */
+        .wall-left, .wall-right {
+            position: absolute;
+            width: 200px;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(0deg, 
+                    #3d3530 0px, 
+                    #3d3530 80px, 
+                    #2a2420 80px, 
+                    #2a2420 85px),
+                repeating-linear-gradient(90deg, 
+                    #352d28 0px, 
+                    #352d28 100px, 
+                    #2a2420 100px, 
+                    #2a2420 105px);
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
+        }
+
+        .wall-left {
+            left: 0;
+            background-position: 0 0, 0 40px;
+        }
+
+        .wall-right {
+            right: 0;
+            background-position: 0 0, 50px 40px;
+        }
+
+        /* Ground/floor */
+        .dungeon-floor {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 150px;
+            background: 
+                linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.8) 100%),
+                repeating-linear-gradient(90deg, 
+                    #2a2420 0px, 
+                    #2a2420 120px, 
+                    #1a1410 120px, 
+                    #1a1410 125px);
+            box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Moss and aging effects */
+        .moss-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(ellipse at 10% 30%, rgba(40, 60, 40, 0.1) 0%, transparent 20%),
+                radial-gradient(ellipse at 90% 40%, rgba(35, 55, 35, 0.1) 0%, transparent 15%),
+                radial-gradient(ellipse at 30% 80%, rgba(45, 65, 45, 0.1) 0%, transparent 18%),
+                radial-gradient(ellipse at 70% 20%, rgba(38, 58, 38, 0.1) 0%, transparent 12%);
+            opacity: 0.6;
+        }
+
+        /* Animated background particles */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(139, 92, 246, 0.5);
+            border-radius: 50%;
+            animation: float 15s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        /* Glowing dungeon ambient light */
+        .glow-orb {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.2;
+            animation: pulse 8s infinite alternate;
+        }
+
+        .glow-orb-1 {
+            background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, transparent 70%);
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .glow-orb-2 {
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: -4s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0.5;
+            }
+        }
+
+        .menu-content {
+            text-align: center;
+            z-index: 10;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .title-container {
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .title-main {
+            font-size: 140px;
+            font-weight: 900;
+            letter-spacing: 15px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 30px rgba(251, 191, 36, 0.5));
+            animation: titleGlow 3s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0 30px rgba(251, 191, 36, 0.5));
+            }
+            50% {
+                filter: drop-shadow(0 0 50px rgba(251, 191, 36, 0.8));
+            }
+        }
+
+        .subtitle {
+            font-size: 24px;
+            letter-spacing: 8px;
+            color: rgba(139, 92, 246, 0.9);
+            text-transform: uppercase;
+            font-weight: 300;
+            margin-bottom: 40px;
+        }
+
+        .tagline {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 50px;
+            font-style: italic;
+        }
+
+        .features {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 50px;
+        }
+
+        .feature-badge {
+            padding: 14px 28px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 30px;
+            color: rgba(139, 92, 246, 1);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            cursor: default;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-badge:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 18px;
+        }
+
+        .cta-button {
+            padding: 22px 80px;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(245, 158, 11, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .cta-button:hover::before {
+            left: 100%;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(245, 158, 11, 0.6);
+        }
+
+        .cta-button:active {
+            transform: translateY(-1px);
+        }
+
+        /* Decorative corner elements */
+        .corner-decor {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .corner-tl {
+            top: 40px;
+            left: 40px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .corner-tr {
+            top: 40px;
+            right: 40px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .corner-bl {
+            bottom: 40px;
+            left: 40px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .corner-br {
+            bottom: 40px;
+            right: 40px;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* Scanline effect */
+        .scanline {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                transparent 50%,
+                rgba(139, 92, 246, 0.02) 51%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            animation: scan 8s linear infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 0 100%;
+            }
+        }
+
+        /* Dungeon and combat elements */
+        .background-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            opacity: 0.15;
+        }
+
+        .dungeon-icon {
+            position: absolute;
+            font-size: 60px;
+            opacity: 0.3;
+            animation: float-element 20s infinite ease-in-out;
+            filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.5));
+        }
+
+        @keyframes float-element {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+            50% {
+                transform: translateY(0) rotate(0deg);
+            }
+            75% {
+                transform: translateY(20px) rotate(-5deg);
+            }
+        }
+
+        /* Monster shadows */
+        .monster {
+            position: absolute;
+            font-size: 80px;
+            animation: monster-lurk 15s infinite ease-in-out;
+            opacity: 0.2;
+            filter: drop-shadow(0 0 20px rgba(236, 72, 153, 0.6));
+        }
+
+        @keyframes monster-lurk {
+            0%, 100% {
+                transform: translateX(0) scale(1);
+                opacity: 0.15;
+            }
+            50% {
+                transform: translateX(30px) scale(1.1);
+                opacity: 0.25;
+            }
+        }
+
+        /* Weapon elements */
+        .weapon {
+            position: absolute;
+            font-size: 50px;
+            animation: weapon-spin 25s infinite linear;
+            opacity: 0.2;
+        }
+
+        @keyframes weapon-spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Combat effects */
+        .combat-effect {
+            position: absolute;
+            font-size: 40px;
+            animation: combat-flash 8s infinite ease-in-out;
+            opacity: 0;
+        }
+
+        @keyframes combat-flash {
+            0%, 90%, 100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            95% {
+                opacity: 0.4;
+                transform: scale(1.2);
+            }
+        }
+
+        /* Torch flames */
+        .torch {
+            position: absolute;
+            font-size: 45px;
+            animation: flicker 2s infinite ease-in-out;
+            filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.8));
+        }
+
+        @keyframes flicker {
+            0%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Dungeon chains */
+        .chain {
+            position: absolute;
+            font-size: 35px;
+            color: rgba(100, 100, 100, 0.3);
+            animation: chain-swing 6s infinite ease-in-out;
+        }
+
+        @keyframes chain-swing {
+            0%, 100% {
+                transform: rotate(-5deg);
+            }
+            50% {
+                transform: rotate(5deg);
+            }
+        }
+
+        /* Treasure chest */
+        .treasure {
+            position: absolute;
+            font-size: 55px;
+            animation: treasure-glow 4s infinite ease-in-out;
+            filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.5));
+        }
+
+        @keyframes treasure-glow {
+            0%, 100% {
+                opacity: 0.2;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.35;
+                transform: scale(1.05);
+            }
+        }
+
+        /* Dungeon key */
+        .key {
+            position: absolute;
+            font-size: 40px;
+            animation: key-float 18s infinite ease-in-out;
+            filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.4));
+        }
+
+        @keyframes key-float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.25;
+            }
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+                opacity: 0.4;
+            }
+        }
+
+        /* Skull decoration */
+        .skull {
+            position: absolute;
+            font-size: 50px;
+            opacity: 0.2;
+            animation: skull-bob 12s infinite ease-in-out;
+        }
+
+        @keyframes skull-bob {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        /* Magic spell effects */
+        .magic {
+            position: absolute;
+            font-size: 45px;
+            animation: magic-pulse 7s infinite ease-in-out;
+            filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.7));
+        }
+
+        @keyframes magic-pulse {
+            0%, 100% {
+                opacity: 0.15;
+                transform: scale(0.9) rotate(0deg);
+            }
+            50% {
+                opacity: 0.35;
+                transform: scale(1.1) rotate(10deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .title-main {
+                font-size: 80px;
+                letter-spacing: 8px;
+            }
+
+            .subtitle {
+                font-size: 18px;
+            }
+
+            .features {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .cta-button {
+                padding: 18px 60px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Stone dungeon structure -->
+        <div class="dungeon-background"></div>
+        <div class="stone-texture"></div>
+        <div class="archway"></div>
+        <div class="wall-left"></div>
+        <div class="wall-right"></div>
+        <div class="dungeon-floor"></div>
+        <div class="moss-overlay"></div>
+        
+        <!-- Background dungeon and combat elements -->
+        <div class="background-elements">
+            <!-- Monsters -->
+            <div class="monster" style="top: 15%; left: 8%; animation-delay: 0s;">👹</div>
+            <div class="monster" style="top: 70%; right: 10%; animation-delay: -5s;">🐉</div>
+            <div class="monster" style="bottom: 20%; left: 12%; animation-delay: -8s;">👾</div>
+            <div class="monster" style="top: 40%; right: 15%; animation-delay: -3s;">🦇</div>
+            <div class="monster" style="top: 60%; left: 5%; animation-delay: -10s;">🕷️</div>
+            
+            <!-- Weapons -->
+            <div class="weapon" style="top: 25%; left: 18%; animation-delay: 0s;">⚔️</div>
+            <div class="weapon" style="bottom: 30%; right: 20%; animation-delay: -8s;">🗡️</div>
+            <div class="weapon" style="top: 55%; left: 15%; animation-delay: -15s;">🪓</div>
+            <div class="weapon" style="top: 80%; right: 25%; animation-delay: -20s;">🏹</div>
+            
+            <!-- Dungeon elements -->
+            <div class="dungeon-icon" style="top: 10%; right: 8%; animation-delay: -2s;">🏰</div>
+            <div class="dungeon-icon" style="bottom: 15%; left: 10%; animation-delay: -6s;">🗿</div>
+            <div class="dungeon-icon" style="top: 50%; left: 8%; animation-delay: -4s;">⚱️</div>
+            
+            <!-- Torches -->
+            <div class="torch" style="top: 12%; left: 5%; animation-delay: 0s;">🔥</div>
+            <div class="torch" style="top: 12%; right: 5%; animation-delay: -1s;">🔥</div>
+            <div class="torch" style="bottom: 12%; left: 5%; animation-delay: -0.5s;">🔥</div>
+            <div class="torch" style="bottom: 12%; right: 5%; animation-delay: -1.5s;">🔥</div>
+            
+            <!-- Chains -->
+            <div class="chain" style="top: 5%; left: 15%; animation-delay: 0s;">⛓️</div>
+            <div class="chain" style="top: 5%; right: 15%; animation-delay: -3s;">⛓️</div>
+            
+            <!-- Combat effects -->
+            <div class="combat-effect" style="top: 30%; left: 25%; animation-delay: 0s;">💥</div>
+            <div class="combat-effect" style="bottom: 35%; right: 22%; animation-delay: -4s;">⚡</div>
+            <div class="combat-effect" style="top: 65%; left: 20%; animation-delay: -6s;">💢</div>
+            
+            <!-- Treasure -->
+            <div class="treasure" style="bottom: 25%; right: 8%; animation-delay: 0s;">💰</div>
+            <div class="treasure" style="top: 35%; right: 5%; animation-delay: -2s;">📦</div>
+            
+            <!-- Keys -->
+            <div class="key" style="top: 75%; right: 18%; animation-delay: 0s;">🗝️</div>
+            <div class="key" style="top: 20%; left: 22%; animation-delay: -9s;">🔑</div>
+            
+            <!-- Skulls -->
+            <div class="skull" style="bottom: 40%; left: 18%; animation-delay: 0s;">💀</div>
+            <div class="skull" style="top: 45%; right: 12%; animation-delay: -6s;">☠️</div>
+            
+            <!-- Magic effects -->
+            <div class="magic" style="top: 28%; left: 12%; animation-delay: 0s;">✨</div>
+            <div class="magic" style="bottom: 45%; right: 15%; animation-delay: -3s;">🔮</div>
+            <div class="magic" style="top: 82%; left: 25%; animation-delay: -5s;">⭐</div>
+            
+            <!-- Shields and armor -->
+            <div class="weapon" style="bottom: 55%; left: 8%; animation-delay: -12s;">🛡️</div>
+            <div class="weapon" style="top: 68%; right: 8%; animation-delay: -18s;">👑</div>
+        </div>
+
+        <!-- Animated background -->
+        <div class="particles" id="particles"></div>
+        <div class="glow-orb glow-orb-1"></div>
+        <div class="glow-orb glow-orb-2"></div>
+        <div class="scanline"></div>
+
+        <!-- Corner decorations -->
+        <div class="corner-decor corner-tl"></div>
+        <div class="corner-decor corner-tr"></div>
+        <div class="corner-decor corner-bl"></div>
+        <div class="corner-decor corner-br"></div>
+
+        <!-- Main content -->
+        <div class="menu-content">
+            <div class="title-container">
+                <h1 class="title-main">RULE</h1>
+                <div class="subtitle">WEB EDITION</div>
+            </div>
+
+            <p class="tagline">Enter the labyrinth. Fight monsters. Survive the darkness.</p>
+
+            <div class="features">
+                <div class="feature-badge">
+                    <span class="feature-icon">⚔️</span>
+                    <span>Turn-Based Combat</span>
+                </div>
+                <div class="feature-badge">
+                    <span class="feature-icon">🛡️</span>
+                    <span>Equipment System</span>
+                </div>
+                <div class="feature-badge">
+                    <span class="feature-icon">🏰</span>
+                    <span>3D Dungeon</span>
+                </div>
+            </div>
+
+            <button class="cta-button" onclick="startGame()">START YOUR ADVENTURE</button>
+        </div>
+    </div>
+
+    <script>
+        // Generate floating particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        createParticles();
+
+        function startGame() {
+            alert('Game starting... (Connect this to your game logic)');
+        }
+
+        // Add keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                startGame();
+            }
+        });
+    </script>
+</body>
+</html>
