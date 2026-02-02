@@ -19,7 +19,7 @@ import {
   Potion, getRandomPotionDrop
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
-import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown, Backpack, Settings, HelpCircle, X } from "lucide-react";
+import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown, Backpack, Settings, HelpCircle, X, Maximize2, Minimize2 } from "lucide-react";
 
 // Graphics resolution presets
 type GraphicsQuality = 'high' | 'medium' | 'low';
@@ -1669,9 +1669,25 @@ export default function Game() {
 
         {/* CENTER COLUMN: Viewport - full width during combat */}
         <div className={`${isCombatFullscreen ? 'lg:col-span-12 h-full' : 'lg:col-span-8'} order-1 lg:order-2`}>
-          {/* Settings button - above dungeon view - hide during combat */}
+          {/* Settings and Fullscreen buttons - above dungeon view - hide during combat */}
           {!isCombatFullscreen && (
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end gap-2 mb-2">
+            {/* Fullscreen toggle button */}
+            <button
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+              }}
+              className="bg-slate-800/90 hover:bg-slate-700 border border-amber-600/30 rounded-lg p-2 text-amber-400 hover:text-amber-300 transition-colors"
+              data-testid="button-fullscreen"
+              title={document.fullscreenElement ? "Exit Fullscreen (F11)" : "Fullscreen (F11)"}
+            >
+              {document.fullscreenElement ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
+            
             <div className="relative">
               <button
                 onClick={() => setShowSettings(!showSettings)}
