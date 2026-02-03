@@ -1335,6 +1335,60 @@ export default function Game() {
       )}
       
       <div className={`${isCombatFullscreen ? 'w-full h-full p-0 flex' : 'max-w-6xl w-full pt-16 pb-4 px-2'} relative z-10 transition-all duration-300`}>
+        
+        {/* Monster Health Bars - Fixed at top center during combat fullscreen */}
+        {isCombatFullscreen && combatState.active && combatState.monsters.length > 0 && (
+          <div className="fixed top-0 left-72 right-80 z-[100] p-3 bg-gradient-to-b from-black/95 via-black/80 to-transparent">
+            <div className="flex flex-nowrap gap-2 justify-center overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {combatState.monsters.map((monster, idx) => {
+                const isBackRow = idx >= 4;
+                const barWidth = combatState.monsters.length <= 3 ? 'w-44' : combatState.monsters.length <= 5 ? 'w-36' : 'w-28';
+                return (
+                  <div 
+                    key={monster.id}
+                    className={`flex-shrink-0 ${barWidth} px-2 py-1.5 rounded-lg border-2 cursor-pointer transition-all ${
+                      idx === combatState.targetIndex && monster.hp > 0
+                        ? 'border-yellow-400 bg-yellow-400/30 scale-105 shadow-lg shadow-yellow-400/30' 
+                        : isBackRow 
+                          ? 'border-cyan-500/60 bg-black/90' 
+                          : 'border-amber-500/60 bg-black/90'
+                    } ${monster.hp <= 0 ? 'opacity-40' : ''}`}
+                    onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`text-xs font-bold truncate ${
+                        monster.hp <= 0 ? 'text-gray-500 line-through' : isBackRow ? 'text-cyan-300' : 'text-amber-300'
+                      }`}>
+                        {combatState.monsters.length > 4 && (
+                          <span className="mr-0.5 opacity-70">{isBackRow ? 'B' : 'F'}</span>
+                        )}
+                        {monster.name}
+                      </span>
+                      {idx === combatState.targetIndex && monster.hp > 0 && (
+                        <span className="text-yellow-400 text-xs flex-shrink-0">◀</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex-1 h-2.5 bg-black/80 rounded-full overflow-hidden border border-white/20">
+                        <div 
+                          className="h-full transition-all duration-300"
+                          style={{ 
+                            width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
+                            backgroundColor: monster.color || (isBackRow ? '#22d3ee' : '#f59e0b')
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-white font-semibold flex-shrink-0 min-w-[40px] text-right">
+                        {monster.hp}/{monster.maxHp}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
         {/* COMBAT FULLSCREEN LAYOUT - Side panel with combat info */}
         {isCombatFullscreen && (
           <div className="w-72 h-full bg-black/90 border-r border-primary/30 flex flex-col p-2 gap-2 overflow-y-auto z-30" style={{ scrollbarWidth: 'thin' }}>
@@ -2218,58 +2272,6 @@ export default function Game() {
                     <div className="absolute inset-0 z-[6] pointer-events-none border-[4px] border-red-500/30 animate-pulse" />
                   )}
                   
-                  {/* Monster Health Bar - Top of Screen - Horizontal row */}
-                  {isCombatFullscreen && (
-                    <div className="absolute top-0 left-72 right-80 z-40 p-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent pointer-events-auto">
-                      <div className="flex flex-nowrap gap-2 justify-center overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                        {combatState.monsters.map((monster, idx) => {
-                          const isBackRow = idx >= 4;
-                          const barWidth = combatState.monsters.length <= 3 ? 'w-40' : combatState.monsters.length <= 5 ? 'w-32' : 'w-28';
-                          return (
-                            <div 
-                              key={monster.id}
-                              className={`flex-shrink-0 ${barWidth} px-2 py-1.5 rounded-lg border-2 cursor-pointer transition-all ${
-                                idx === combatState.targetIndex && monster.hp > 0
-                                  ? 'border-yellow-400 bg-yellow-400/30 scale-105 shadow-lg shadow-yellow-400/30' 
-                                  : isBackRow 
-                                    ? 'border-cyan-500/60 bg-black/80' 
-                                    : 'border-amber-500/60 bg-black/80'
-                              } ${monster.hp <= 0 ? 'opacity-40' : ''}`}
-                              onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                            >
-                              <div className="flex items-center justify-between gap-1">
-                                <span className={`text-xs font-bold truncate ${
-                                  monster.hp <= 0 ? 'text-gray-500 line-through' : isBackRow ? 'text-cyan-300' : 'text-amber-300'
-                                }`}>
-                                  {combatState.monsters.length > 4 && (
-                                    <span className="mr-0.5 opacity-70">{isBackRow ? 'B' : 'F'}</span>
-                                  )}
-                                  {monster.name}
-                                </span>
-                                {idx === combatState.targetIndex && monster.hp > 0 && (
-                                  <span className="text-yellow-400 text-xs flex-shrink-0">◀</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <div className="flex-1 h-2.5 bg-black/80 rounded-full overflow-hidden border border-white/20">
-                                  <div 
-                                    className="h-full transition-all duration-300"
-                                    style={{ 
-                                      width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
-                                      backgroundColor: monster.color || (isBackRow ? '#22d3ee' : '#f59e0b')
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs text-white font-semibold flex-shrink-0 min-w-[40px] text-right">
-                                  {monster.hp}/{monster.maxHp}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                   
                   {/* Monster display with front/back row layout for up to 8 monsters */}
                   <div className={`absolute inset-0 z-10 flex items-center justify-center pointer-events-none ${
