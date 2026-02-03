@@ -11,10 +11,11 @@ import {
   getRandomMonster, Monster,
   xpForLevel, getLevelUpStats, Player,
   Ability, getAbilitiesForJob, getScaledAbilityPower,
-  getEffectiveStats, Equipment, getRandomEquipmentDrop, canEquip,
+  getEffectiveStats, getCombatStats, getActiveSetBonuses, getEquippedItemsArray,
+  Equipment, getRandomEquipmentDrop, canEquip,
   getEnhancedName, getEnhancedStats, PlayerEquipment,
   TILE_FLOOR, TILE_WALL, TILE_DOOR, TILE_LADDER_DOWN, TILE_LADDER_UP,
-  EQUIPMENT_DATABASE,
+  EQUIPMENT_DATABASE, SET_BONUSES,
   generateFloorMap,
   Potion, getRandomPotionDrop
 } from "@/lib/game-engine";
@@ -57,6 +58,14 @@ export default function Game() {
     defending: boolean 
   }>({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
   const [monsterAnimations, setMonsterAnimations] = useState<{ [key: number]: MonsterAnimationState }>({});
+  
+  // Track monster status effects (burn damage, slow, etc.)
+  const [monsterEffects, setMonsterEffects] = useState<{ 
+    [monsterId: string]: { 
+      burn?: number;  // Burn damage per turn
+      slow?: number;  // Speed reduction percentage
+    } 
+  }>({});
   
   // Helper to check if monster is flying type
   const isFlying = (name: string) => {
@@ -402,6 +411,7 @@ export default function Game() {
       (document.activeElement as HTMLElement)?.blur();
       setLogs(prev => ["You fled from battle!", ...prev].slice(0, 5));
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+      setMonsterEffects({}); // Clear status effects
       setIsCombatFullscreen(false);
       setCombatTransition('none');
     }
@@ -703,8 +713,31 @@ export default function Game() {
     
     let newParty = [...game.party];
     
-    // Sort alive monsters by speed (fastest attacks first)
-    const sortedMonsters = [...updatedMonsters].filter(m => m.hp > 0).sort((a, b) => b.speed - a.speed);
+    // Apply burn damage to monsters at start of their turn
+    for (let i = 0; i < updatedMonsters.length; i++) {
+      const m = updatedMonsters[i];
+      if (m.hp > 0 && monsterEffects[m.id]?.burn) {
+        const burnDmg = monsterEffects[m.id].burn!;
+        updatedMonsters[i] = { ...m, hp: m.hp - burnDmg };
+        log(`${m.name} takes ${burnDmg} burn damage!`);
+        if (updatedMonsters[i].hp <= 0) {
+          log(`${m.name} burned to death!`);
+          triggerMonsterAnimation(i, 'death', 1200);
+          // Clean up effects for dead monster
+          setMonsterEffects(prev => {
+            const { [m.id]: _, ...rest } = prev;
+            return rest;
+          });
+        }
+      }
+    }
+    
+    // Sort alive monsters by speed (fastest attacks first), applying slow effect
+    const getEffectiveSpeed = (m: Monster) => {
+      const slow = monsterEffects[m.id]?.slow || 0;
+      return Math.floor(m.speed * (1 - slow / 100));
+    };
+    const sortedMonsters = [...updatedMonsters].filter(m => m.hp > 0).sort((a, b) => getEffectiveSpeed(b) - getEffectiveSpeed(a));
     
     for (let i = 0; i < sortedMonsters.length; i++) {
       const monster = sortedMonsters[i];
@@ -714,11 +747,25 @@ export default function Game() {
       const targetIdx = Math.floor(Math.random() * aliveMembersNow.length);
       const target = aliveMembersNow[targetIdx];
       const targetStats = getEffectiveStats(target);
+      const targetCombatStats = getCombatStats(target);
       const defenseMultiplier = defendingActive ? 2 : 1;
-      const monsterDmg = Math.max(1, Math.floor(monster.attack - (targetStats.defense * defenseMultiplier / 2)));
       
       // Find original index of this monster for animation
       const originalIdx = updatedMonsters.findIndex(m => m.name === monster.name && m.hp === monster.hp);
+      
+      // Check for evasion (player dodges attack)
+      if (targetCombatStats.evasion > 0 && Math.random() * 100 < targetCombatStats.evasion) {
+        log(`${target.name} evades ${monster.name}'s attack!`);
+        if (originalIdx >= 0) {
+          setTimeout(() => {
+            triggerMonsterAnimation(originalIdx, 'attack', 600);
+          }, i * 200);
+        }
+        continue; // Skip damage, but still animate
+      }
+      
+      const monsterDmg = Math.max(1, Math.floor(monster.attack - (targetStats.defense * defenseMultiplier / 2)));
+      
       if (originalIdx >= 0) {
         // Stagger animations for multiple monsters
         setTimeout(() => {
@@ -731,6 +778,16 @@ export default function Game() {
       );
       
       log(`${monster.name} hits ${target.name} for ${monsterDmg} dmg!`);
+      
+      // Check for counter-attack
+      if (targetCombatStats.counterChance > 0 && Math.random() * 100 < targetCombatStats.counterChance) {
+        const counterDamage = Math.max(1, Math.floor(targetStats.attack * 0.5)); // Counter does 50% attack damage
+        const monsterIdx = updatedMonsters.findIndex(m => m.id === monster.id);
+        if (monsterIdx >= 0) {
+          updatedMonsters[monsterIdx] = { ...updatedMonsters[monsterIdx], hp: updatedMonsters[monsterIdx].hp - counterDamage };
+          log(`${target.name} counters ${monster.name} for ${counterDamage} dmg!`);
+        }
+      }
     }
     
     setGame(prev => prev ? ({ ...prev, party: newParty }) : null);
@@ -796,12 +853,85 @@ export default function Game() {
     
     // Get effective stats with equipment
     const charStats = getEffectiveStats(char);
+    const combatStats = getCombatStats(char);
     
     switch (ability.type) {
       case 'attack': {
-        const damage = Math.max(1, Math.floor(charStats.attack * scaledPower - (targetMonster.defense / 2)));
+        // Apply defense penetration (reduce effective enemy defense)
+        const effectiveDefense = targetMonster.defense * (1 - combatStats.defensePenetration / 100);
+        
+        // Calculate base damage
+        let damage = Math.max(1, Math.floor(charStats.attack * scaledPower - (effectiveDefense / 2)));
+        
+        // Check for critical hit
+        let isCrit = false;
+        if (combatStats.critChance > 0 && Math.random() * 100 < combatStats.critChance) {
+          isCrit = true;
+          const critMultiplier = 1.5 + (combatStats.critDamage / 100); // Base 1.5x + bonus crit damage
+          damage = Math.floor(damage * critMultiplier);
+        }
+        
         newMonsters[combatState.targetIndex] = { ...targetMonster, hp: targetMonster.hp - damage };
-        log(`${char.name} uses ${ability.name} on ${targetMonster.name}! ${damage} damage!`);
+        
+        if (isCrit) {
+          log(`${char.name} CRITICAL HIT on ${targetMonster.name}! ${damage} damage!`);
+        } else {
+          log(`${char.name} uses ${ability.name} on ${targetMonster.name}! ${damage} damage!`);
+        }
+        
+        // Apply lifesteal healing
+        if (combatStats.lifesteal > 0) {
+          const healFromLifesteal = Math.floor(damage * combatStats.lifesteal / 100);
+          if (healFromLifesteal > 0) {
+            const maxHp = charStats.maxHp;
+            const newHp = Math.min(maxHp, char.hp + healFromLifesteal);
+            newParty[charIndex] = { ...char, hp: newHp };
+            log(`${char.name} heals ${healFromLifesteal} HP from lifesteal!`);
+          }
+        }
+        
+        // Apply on-hit heal
+        if (combatStats.onHitHeal > 0) {
+          const maxHp = charStats.maxHp;
+          const newHp = Math.min(maxHp, newParty[charIndex].hp + combatStats.onHitHeal);
+          newParty[charIndex] = { ...newParty[charIndex], hp: newHp };
+          log(`${char.name} heals ${combatStats.onHitHeal} HP on hit!`);
+        }
+        
+        // Apply elemental effects
+        const targetMonsterId = targetMonster.id;
+        
+        // Apply burn damage (Fire DoT)
+        if (combatStats.burnDamage > 0) {
+          setMonsterEffects(prev => ({
+            ...prev,
+            [targetMonsterId]: { ...prev[targetMonsterId], burn: combatStats.burnDamage }
+          }));
+          log(`${targetMonster.name} is burning! (${combatStats.burnDamage} dmg/turn)`);
+        }
+        
+        // Apply slow effect (Ice)
+        if (combatStats.slowEffect > 0) {
+          setMonsterEffects(prev => ({
+            ...prev,
+            [targetMonsterId]: { ...prev[targetMonsterId], slow: combatStats.slowEffect }
+          }));
+          log(`${targetMonster.name} is slowed by ${combatStats.slowEffect}%!`);
+        }
+        
+        // Apply lightning chain damage to other monsters
+        if (combatStats.chainDamage > 0 && newMonsters.filter(m => m.hp > 0).length > 1) {
+          const otherMonsters = newMonsters
+            .map((m, idx) => ({ m, idx }))
+            .filter(({ m, idx }) => m.hp > 0 && idx !== combatState.targetIndex);
+          
+          for (const { m, idx } of otherMonsters) {
+            const chainDmg = Math.max(1, Math.floor(damage * combatStats.chainDamage / 100));
+            newMonsters[idx] = { ...m, hp: m.hp - chainDmg };
+            log(`Lightning chains to ${m.name} for ${chainDmg} dmg!`);
+          }
+        }
+        
         // Trigger hit animation on monster
         triggerMonsterAnimation(combatState.targetIndex, 'hit', 500);
         break;
@@ -841,6 +971,21 @@ export default function Game() {
       log(`Defeated ${targetMonster.name}!`);
       // Trigger death animation
       triggerMonsterAnimation(combatState.targetIndex, 'death', 1200);
+      // Clean up effects for dead monster
+      setMonsterEffects(prev => {
+        const { [targetMonster.id]: _, ...rest } = prev;
+        return rest;
+      });
+    }
+    
+    // Clean up effects for any monsters killed by chain damage
+    for (const m of newMonsters) {
+      if (m.hp <= 0 && monsterEffects[m.id]) {
+        setMonsterEffects(prev => {
+          const { [m.id]: _, ...rest } = prev;
+          return rest;
+        });
+      }
     }
     
     // Check for total victory (all monsters defeated)
@@ -895,6 +1040,7 @@ export default function Game() {
       }
       
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+      setMonsterEffects({}); // Clear status effects
       setIsCombatFullscreen(false);
       setCombatTransition('none');
       setTimeout(() => awardXP(totalXp), 100);
@@ -942,6 +1088,7 @@ export default function Game() {
     (document.activeElement as HTMLElement)?.blur();
     log("You fled from battle!");
     setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
+    setMonsterEffects({}); // Clear status effects
     setIsCombatFullscreen(false);
     setCombatTransition('none');
   };
@@ -1510,6 +1657,73 @@ export default function Game() {
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Active Set Bonuses */}
+                      {(() => {
+                        const equippedItems = getEquippedItemsArray(char);
+                        const activeBonuses = getActiveSetBonuses(equippedItems);
+                        const combatStats = getCombatStats(char);
+                        
+                        if (activeBonuses.length === 0) return null;
+                        
+                        return (
+                          <div className="bg-white/5 rounded-lg p-2 border border-purple-400/30">
+                            <div className="text-[9px] text-purple-400 mb-2">ACTIVE SET BONUSES</div>
+                            <div className="space-y-2">
+                              {activeBonuses.map(({ setName, pieceCount, bonuses }) => (
+                                <div key={setName} className="space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[10px] text-purple-300 font-medium">{setName}</span>
+                                    <span className="text-[9px] text-muted-foreground">({pieceCount}pc)</span>
+                                  </div>
+                                  {bonuses.map((bonus, idx) => (
+                                    <div key={idx} className="text-[9px] text-green-400 pl-2">
+                                      • {bonus.description}
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                              
+                              {/* Combat bonus summary */}
+                              <div className="mt-2 pt-2 border-t border-white/10">
+                                <div className="text-[9px] text-muted-foreground mb-1">Combat Effects:</div>
+                                <div className="grid grid-cols-2 gap-1 text-[9px]">
+                                  {combatStats.critChance > 0 && (
+                                    <span className="text-yellow-400">Crit: {combatStats.critChance}%</span>
+                                  )}
+                                  {combatStats.critDamage > 0 && (
+                                    <span className="text-orange-400">Crit Dmg: +{combatStats.critDamage}%</span>
+                                  )}
+                                  {combatStats.evasion > 0 && (
+                                    <span className="text-cyan-400">Evasion: {combatStats.evasion}%</span>
+                                  )}
+                                  {combatStats.lifesteal > 0 && (
+                                    <span className="text-red-400">Lifesteal: {combatStats.lifesteal}%</span>
+                                  )}
+                                  {combatStats.counterChance > 0 && (
+                                    <span className="text-amber-400">Counter: {combatStats.counterChance}%</span>
+                                  )}
+                                  {combatStats.defensePenetration > 0 && (
+                                    <span className="text-pink-400">Pen: {combatStats.defensePenetration}%</span>
+                                  )}
+                                  {combatStats.burnDamage > 0 && (
+                                    <span className="text-orange-500">Burn: {combatStats.burnDamage}/turn</span>
+                                  )}
+                                  {combatStats.slowEffect > 0 && (
+                                    <span className="text-blue-400">Slow: {combatStats.slowEffect}%</span>
+                                  )}
+                                  {combatStats.chainDamage > 0 && (
+                                    <span className="text-purple-400">Chain: {combatStats.chainDamage}%</span>
+                                  )}
+                                  {combatStats.onHitHeal > 0 && (
+                                    <span className="text-green-400">On-hit: +{combatStats.onHitHeal} HP</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       
                       {/* Equipped Items Summary */}
                       <div className="bg-white/5 rounded-lg p-2 border border-white/10">

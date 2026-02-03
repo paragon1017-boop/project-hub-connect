@@ -1,7 +1,7 @@
 // Types and Logic for the Dungeon Crawler
 
 // Import equipment database
-import { COMPLETE_EQUIPMENT_DATABASE, SET_BONUSES, type ExtendedEquipmentSet } from './equipment-data';
+import { COMPLETE_EQUIPMENT_DATABASE, SET_BONUSES, type ExtendedEquipmentSet, type SetBonus } from './equipment-data';
 
 // Monster sprite imports - unique sprites for each monster
 import caveBatSprite from "@/assets/monsters/cave_bat.png";
@@ -71,6 +71,119 @@ export type EquipmentSet = ExtendedEquipmentSet;
 
 // Re-export SET_BONUSES for use in other files
 export { SET_BONUSES };
+
+// Set Bonus Calculation System
+export interface SetPieceCount {
+  set: ExtendedEquipmentSet;
+  count: number;
+}
+
+export interface ActiveSetBonus {
+  setName: ExtendedEquipmentSet;
+  pieceCount: number;
+  bonuses: SetBonus[];
+}
+
+// Count set pieces from equipped items
+export function countSetPieces(equippedItems: (Equipment | null)[]): SetPieceCount[] {
+  const setCounts = new Map<ExtendedEquipmentSet, number>();
+  
+  for (const item of equippedItems) {
+    if (item?.set && item.set !== 'None') {
+      const current = setCounts.get(item.set) || 0;
+      setCounts.set(item.set, current + 1);
+    }
+  }
+  
+  return Array.from(setCounts.entries()).map(([set, count]) => ({ set, count }));
+}
+
+// Get active bonuses for a set based on piece count
+export function getActiveSetBonuses(equippedItems: (Equipment | null)[]): ActiveSetBonus[] {
+  const setPieces = countSetPieces(equippedItems);
+  const activeBonuses: ActiveSetBonus[] = [];
+  
+  for (const { set, count } of setPieces) {
+    if (set === 'None') continue;
+    
+    // Safe access - SET_BONUSES is properly typed, only access if key exists
+    if (!(set in SET_BONUSES)) continue;
+    const setBonusData = SET_BONUSES[set as keyof typeof SET_BONUSES];
+    if (!setBonusData) continue;
+    
+    // Get all bonuses where threshold is met
+    const activeThresholdBonuses = setBonusData.bonuses.filter(b => count >= b.threshold);
+    
+    if (activeThresholdBonuses.length > 0) {
+      activeBonuses.push({
+        setName: set,
+        pieceCount: count,
+        bonuses: activeThresholdBonuses
+      });
+    }
+  }
+  
+  return activeBonuses;
+}
+
+// Calculate total set bonus modifiers (cumulative for percentage bonuses)
+export function calculateSetBonusStats(activeBonuses: ActiveSetBonus[]): {
+  attackPercent: number;
+  defensePercent: number;
+  hpPercent: number;
+  mpPercent: number;
+  speedPercent: number;
+  critChance: number;
+  critDamage: number;
+  evasion: number;
+  defensePenetration: number;
+  lifesteal: number;
+  counterChance: number;
+  onHitHeal: number;
+  burnDamage: number;
+  slowEffect: number;
+  chainDamage: number;
+} {
+  const totals = {
+    attackPercent: 0,
+    defensePercent: 0,
+    hpPercent: 0,
+    mpPercent: 0,
+    speedPercent: 0,
+    critChance: 0,
+    critDamage: 0,
+    evasion: 0,
+    defensePenetration: 0,
+    lifesteal: 0,
+    counterChance: 0,
+    onHitHeal: 0,
+    burnDamage: 0,
+    slowEffect: 0,
+    chainDamage: 0
+  };
+  
+  for (const { bonuses } of activeBonuses) {
+    for (const bonus of bonuses) {
+      totals.attackPercent += bonus.attackPercent || 0;
+      totals.defensePercent += bonus.defensePercent || 0;
+      totals.hpPercent += bonus.hpPercent || 0;
+      totals.mpPercent += bonus.mpPercent || 0;
+      totals.speedPercent += bonus.speedPercent || 0;
+      totals.critChance += bonus.critChance || 0;
+      totals.critDamage += bonus.critDamage || 0;
+      totals.evasion += bonus.evasion || 0;
+      totals.defensePenetration += bonus.defensePenetration || 0;
+      totals.lifesteal += bonus.lifesteal || 0;
+      totals.counterChance += bonus.counterChance || 0;
+      totals.onHitHeal += bonus.onHitHeal || 0;
+      totals.burnDamage += bonus.burnDamage || 0;
+      totals.slowEffect += bonus.slowEffect || 0;
+      totals.chainDamage += bonus.chainDamage || 0;
+    }
+  }
+  
+  return totals;
+}
 
 export interface Equipment {
   id: string;
@@ -239,7 +352,29 @@ export function canEquip(player: Player, equipment: Equipment): boolean {
   return true;
 }
 
-// Calculate total stats including equipment bonuses (with enhancement)
+// Get equipped items array for a player (respecting class restrictions)
+export function getEquippedItemsArray(player: Player): (Equipment | null)[] {
+  const job = player.job;
+  const canUseShield = job === 'Fighter';
+  const canUseOffhand = job !== 'Fighter';
+  const canUseRelic = job === 'Mage';
+  
+  return [
+    player.equipment.weapon,
+    canUseShield ? player.equipment.shield : null,
+    player.equipment.armor,
+    player.equipment.helmet,
+    player.equipment.gloves,
+    player.equipment.boots,
+    player.equipment.necklace,
+    player.equipment.ring1,
+    player.equipment.ring2,
+    canUseRelic ? player.equipment.relic : null,
+    canUseOffhand ? player.equipment.offhand : null,
+  ];
+}
+
+// Calculate total stats including equipment bonuses (with enhancement) and set bonuses
 // Only counts equipment in valid slots for the player's class
 export function getEffectiveStats(player: Player): { attack: number; defense: number; maxHp: number; maxMp: number; speed: number } {
   let attack = player.attack;
@@ -248,27 +383,9 @@ export function getEffectiveStats(player: Player): { attack: number; defense: nu
   let maxMp = player.maxMp;
   let speed = player.speed;
   
-  // Class-based slot validity
-  const job = player.job;
-  const canUseShield = job === 'Fighter';
-  const canUseOffhand = job !== 'Fighter';
-  const canUseRelic = job === 'Mage';
+  const equippedItems = getEquippedItemsArray(player);
   
-  // Get all equipped items from the new slot system, respecting class restrictions
-  const equippedItems: (Equipment | null)[] = [
-    player.equipment.weapon,
-    canUseShield ? player.equipment.shield : null,  // Fighter only
-    player.equipment.armor,
-    player.equipment.helmet,
-    player.equipment.gloves,
-    player.equipment.boots,
-    player.equipment.necklace,
-    player.equipment.ring1,
-    player.equipment.ring2,
-    canUseRelic ? player.equipment.relic : null,    // Mage only
-    canUseOffhand ? player.equipment.offhand : null, // Mage/Monk only
-  ];
-  
+  // Add flat equipment stats
   for (const item of equippedItems) {
     if (item) {
       const enhanced = getEnhancedStats(item);
@@ -280,7 +397,59 @@ export function getEffectiveStats(player: Player): { attack: number; defense: nu
     }
   }
   
+  // Apply set bonus percentage modifiers
+  const activeBonuses = getActiveSetBonuses(equippedItems);
+  const setBonusStats = calculateSetBonusStats(activeBonuses);
+  
+  // Apply percentage bonuses (additive percentages of base stats + equipment)
+  attack = Math.floor(attack * (1 + setBonusStats.attackPercent / 100));
+  defense = Math.floor(defense * (1 + setBonusStats.defensePercent / 100));
+  maxHp = Math.floor(maxHp * (1 + setBonusStats.hpPercent / 100));
+  maxMp = Math.floor(maxMp * (1 + setBonusStats.mpPercent / 100));
+  speed = Math.floor(speed * (1 + setBonusStats.speedPercent / 100));
+  
   return { attack, defense, maxHp, maxMp, speed };
+}
+
+// Extended stats for combat including set bonus combat mechanics
+export interface CombatStats {
+  attack: number;
+  defense: number;
+  maxHp: number;
+  maxMp: number;
+  speed: number;
+  critChance: number;
+  critDamage: number;
+  evasion: number;
+  defensePenetration: number;
+  lifesteal: number;
+  counterChance: number;
+  onHitHeal: number;
+  burnDamage: number;
+  slowEffect: number;
+  chainDamage: number;
+}
+
+// Get full combat stats including all set bonus effects
+export function getCombatStats(player: Player): CombatStats {
+  const baseStats = getEffectiveStats(player);
+  const equippedItems = getEquippedItemsArray(player);
+  const activeBonuses = getActiveSetBonuses(equippedItems);
+  const setBonusStats = calculateSetBonusStats(activeBonuses);
+  
+  return {
+    ...baseStats,
+    critChance: setBonusStats.critChance,
+    critDamage: setBonusStats.critDamage,
+    evasion: setBonusStats.evasion,
+    defensePenetration: setBonusStats.defensePenetration,
+    lifesteal: setBonusStats.lifesteal,
+    counterChance: setBonusStats.counterChance,
+    onHitHeal: setBonusStats.onHitHeal,
+    burnDamage: setBonusStats.burnDamage,
+    slowEffect: setBonusStats.slowEffect,
+    chainDamage: setBonusStats.chainDamage
+  };
 }
 
 // Get equipment that can drop from monsters (based on rarity chances)
