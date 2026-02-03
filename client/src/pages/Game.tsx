@@ -271,7 +271,7 @@ export default function Game() {
       setTimeout(() => {
         setIsCombatFullscreen(true);
         setCombatTransition('active');
-      }, 300); // Fast transition
+      }, 650); // Dramatic transition with animations
       
       // Trigger entrance animation for all monsters
       monsters.forEach((_, idx) => {
@@ -1292,30 +1292,80 @@ export default function Game() {
         transition: 'opacity 300ms ease-out'
       }} />
       
-      {/* Combat Transition Effect */}
+      {/* Combat Transition Effect - Dramatic Battle Entry */}
       {combatTransition === 'entering' && (
         <div 
-          className="fixed inset-0 z-[100] pointer-events-none"
+          className="fixed inset-0 z-[100] pointer-events-none overflow-hidden"
           style={{
-            animation: 'combatFlash 300ms ease-out forwards'
+            animation: 'combatScreenShake 600ms ease-out'
           }}
         >
-          {/* White flash overlay */}
+          {/* Black background for dramatic effect */}
+          <div className="absolute inset-0 bg-black" style={{
+            animation: 'combatFlashBright 600ms ease-out forwards',
+            animationDelay: '100ms'
+          }} />
+          
+          {/* White flash burst */}
           <div className="absolute inset-0 bg-white" style={{
-            animation: 'flashIn 150ms ease-out forwards'
+            animation: 'combatFlashBright 400ms ease-out forwards'
           }} />
-          {/* Red combat indicator */}
+          
+          {/* Red vignette pulse */}
           <div className="absolute inset-0" style={{
-            background: 'radial-gradient(circle at center, transparent 0%, rgba(200,50,50,0.6) 100%)',
-            animation: 'pulseIn 300ms ease-out forwards'
+            animation: 'combatRedPulse 600ms ease-out forwards'
           }} />
-          {/* Zoom lines effect */}
+          
+          {/* Diagonal slash lines */}
+          <div className="absolute inset-0" style={{
+            background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,100,100,0.3) 10px, rgba(255,100,100,0.3) 20px)',
+            animation: 'combatSlash 400ms ease-out forwards'
+          }} />
+          <div className="absolute inset-0" style={{
+            background: 'repeating-linear-gradient(-45deg, transparent, transparent 15px, rgba(255,150,50,0.2) 15px, rgba(255,150,50,0.2) 25px)',
+            animation: 'combatSlash 500ms ease-out forwards',
+            animationDelay: '100ms'
+          }} />
+          
+          {/* Swirling vortex effect */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-4xl font-pixel text-red-500 drop-shadow-[0_0_20px_rgba(255,100,100,0.8)]" style={{
-              animation: 'encounterText 300ms ease-out forwards'
-            }}>
+            <div style={{
+              width: '200px',
+              height: '200px',
+              background: 'conic-gradient(from 0deg, transparent, rgba(200,50,50,0.4), transparent, rgba(255,100,50,0.3), transparent)',
+              borderRadius: '50%',
+              animation: 'combatVortex 600ms ease-out forwards'
+            }} />
+          </div>
+          
+          {/* ENCOUNTER text slam */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div 
+              className="text-5xl font-pixel text-red-500 tracking-wider"
+              style={{
+                textShadow: '0 0 30px rgba(255,100,100,0.9), 0 0 60px rgba(255,50,50,0.6), 2px 2px 0 #000, -2px -2px 0 #000',
+                animation: 'combatTextSlam 600ms ease-out forwards'
+              }}
+            >
               ENCOUNTER!
             </div>
+          </div>
+          
+          {/* Speed lines radiating from center */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {[...Array(12)].map((_, i) => (
+              <div 
+                key={i}
+                className="absolute bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{
+                  width: '150%',
+                  height: '2px',
+                  transform: `rotate(${i * 30}deg)`,
+                  animation: `combatLinesSweep 400ms ease-out forwards`,
+                  animationDelay: `${i * 20}ms`
+                }}
+              />
+            ))}
           </div>
         </div>
       )}
