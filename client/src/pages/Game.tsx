@@ -112,6 +112,12 @@ export default function Game() {
   const [selectedCharForPotion, setSelectedCharForPotion] = useState(0);
   const gameContainerRef = useRef<HTMLDivElement>(null);
   
+  // Visual position for smooth movement interpolation
+  const [visualPos, setVisualPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const targetPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const visualPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isAnimatingRef = useRef(false);
+  
   // Refs to access current state in keyboard handlers without re-registering hooks
   const gameRef = useRef<GameData | null>(null);
   const combatActiveRef = useRef(false);
@@ -191,13 +197,64 @@ export default function Game() {
         };
         
         setGame(migratedData);
+        // Initialize visual position to match loaded game
+        setVisualPos({ x: migratedData.x, y: migratedData.y });
+        visualPosRef.current = { x: migratedData.x, y: migratedData.y };
+        targetPosRef.current = { x: migratedData.x, y: migratedData.y };
         log("Game loaded from server.");
       } else {
-        setGame(createInitialState());
+        const newGame = createInitialState();
+        setGame(newGame);
+        // Initialize visual position for new game
+        setVisualPos({ x: newGame.x, y: newGame.y });
+        visualPosRef.current = { x: newGame.x, y: newGame.y };
+        targetPosRef.current = { x: newGame.x, y: newGame.y };
         log("New game started.");
       }
     }
   }, [serverState, isLoading]);
+
+  // Smooth movement interpolation animation loop
+  useEffect(() => {
+    const INTERPOLATION_SPEED = 12; // Higher = faster movement (tiles per second)
+    let animationId: number;
+    let lastTime = performance.now();
+    
+    const animate = (time: number) => {
+      const deltaTime = (time - lastTime) / 1000; // Convert to seconds
+      lastTime = time;
+      
+      const current = visualPosRef.current;
+      const target = targetPosRef.current;
+      
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > 0.01) {
+        // Move toward target at constant speed
+        const moveAmount = Math.min(distance, INTERPOLATION_SPEED * deltaTime);
+        const ratio = moveAmount / distance;
+        
+        const newX = current.x + dx * ratio;
+        const newY = current.y + dy * ratio;
+        
+        visualPosRef.current = { x: newX, y: newY };
+        setVisualPos({ x: newX, y: newY });
+        isAnimatingRef.current = true;
+      } else if (isAnimatingRef.current) {
+        // Snap to target when close enough
+        visualPosRef.current = { x: target.x, y: target.y };
+        setVisualPos({ x: target.x, y: target.y });
+        isAnimatingRef.current = false;
+      }
+      
+      animationId = requestAnimationFrame(animate);
+    };
+    
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, []);
 
   const log = useCallback((msg: string) => {
     setLogs(prev => [msg, ...prev].slice(0, 5));
@@ -224,6 +281,9 @@ export default function Game() {
     }
 
     setGame(prev => prev ? ({ ...prev, x: nx, y: ny }) : null);
+    
+    // Update target position for smooth interpolation
+    targetPosRef.current = { x: nx, y: ny };
 
     // Check for ladder tiles and show prompt
     if (tile === TILE_LADDER_DOWN) {
@@ -305,6 +365,10 @@ export default function Game() {
         y: startY,
         dir: EAST
       }) : null);
+      // Snap visual position immediately on level change
+      setVisualPos({ x: startX, y: startY });
+      visualPosRef.current = { x: startX, y: startY };
+      targetPosRef.current = { x: startX, y: startY };
       log(`Descended to Floor ${newFloor}. The dungeon grows darker...`);
     } else if (currentTile === TILE_LADDER_UP && game.level > 1) {
       // Ascend to previous floor
@@ -319,6 +383,10 @@ export default function Game() {
         y: ladderDownY,
         dir: EAST
       }) : null);
+      // Snap visual position immediately on level change
+      setVisualPos({ x: ladderDownX, y: ladderDownY });
+      visualPosRef.current = { x: ladderDownX, y: ladderDownY };
+      targetPosRef.current = { x: ladderDownX, y: ladderDownY };
       log(`Ascended to Floor ${newFloor}. The air feels lighter.`);
     }
   }, [game, combatState.active, log]);
@@ -717,7 +785,12 @@ export default function Game() {
 
   const handleNewGame = () => {
     if (window.confirm("Start a new game? All unsaved progress will be lost!")) {
-      setGame(createInitialState());
+      const newGame = createInitialState();
+      setGame(newGame);
+      // Snap visual position for new game
+      setVisualPos({ x: newGame.x, y: newGame.y });
+      visualPosRef.current = { x: newGame.x, y: newGame.y };
+      targetPosRef.current = { x: newGame.x, y: newGame.y };
       setCombatState({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
       setMonsterEffects({});
       setPartyEffects({});
@@ -1294,13 +1367,13 @@ export default function Game() {
       {/* Atmospheric Effects - Floating Dust Particles */}
       {!isCombatFullscreen && (
         <div data-testid="effect-dust-particles" className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Dust particles floating in air - reduced to 15 for performance */}
-          {[...Array(15)].map((_, i) => {
+          {/* Dust particles floating in air - reduced to 8 for performance */}
+          {[...Array(8)].map((_, i) => {
             const size = 1 + (i % 3);
             const startX = ((i * 37) % 100);
             const startY = ((i * 53) % 100);
-            const duration = 10 + (i % 5) * 3;
-            const delay = (i % 8) * 1;
+            const duration = 15 + (i % 4) * 4; // Slower animations
+            const delay = (i % 6) * 1.5;
             return (
               <div
                 key={`dust-${i}`}
@@ -1310,7 +1383,8 @@ export default function Game() {
                   height: `${size}px`,
                   left: `${startX}%`,
                   top: `${startY}%`,
-                  animation: `dustFloat ${duration}s ease-in-out ${delay}s infinite`
+                  animation: `dustFloat ${duration}s ease-in-out ${delay}s infinite`,
+                  willChange: 'transform, opacity'
                 }}
               />
             );
@@ -1323,11 +1397,13 @@ export default function Game() {
         <div data-testid="effect-torch-glow">
           <div className="absolute top-[20%] left-[5%] w-32 h-32 pointer-events-none" style={{
             background: 'radial-gradient(circle, rgba(255,150,50,0.35) 0%, rgba(255,100,30,0.15) 40%, transparent 70%)',
-            animation: 'torchFlicker 0.2s ease-in-out infinite alternate'
+            animation: 'torchFlicker 0.4s ease-in-out infinite alternate',
+            willChange: 'opacity'
           }} />
           <div className="absolute top-[25%] right-[8%] w-28 h-28 pointer-events-none" style={{
             background: 'radial-gradient(circle, rgba(255,140,40,0.3) 0%, rgba(255,90,20,0.12) 40%, transparent 70%)',
-            animation: 'torchFlicker 0.18s ease-in-out 0.08s infinite alternate'
+            animation: 'torchFlicker 0.35s ease-in-out 0.15s infinite alternate',
+            willChange: 'opacity'
           }} />
         </div>
       )}
@@ -1336,7 +1412,8 @@ export default function Game() {
       {!isCombatFullscreen && (
         <div data-testid="effect-fog-layer" className="absolute bottom-0 left-0 right-0 h-[25%] pointer-events-none" style={{
           background: 'linear-gradient(to top, rgba(40,45,50,0.35) 0%, rgba(30,35,40,0.15) 50%, transparent 100%)',
-          animation: 'fogDrift 25s ease-in-out infinite'
+          animation: 'fogDrift 35s ease-in-out infinite',
+          willChange: 'transform'
         }}>
           {/* Rolling fog wisps */}
           <div className="absolute bottom-0 left-0 right-0 h-full" style={{
@@ -1344,7 +1421,8 @@ export default function Game() {
               radial-gradient(ellipse 80% 30% at 20% 90%, rgba(60,65,70,0.25) 0%, transparent 60%),
               radial-gradient(ellipse 60% 25% at 70% 85%, rgba(50,55,60,0.2) 0%, transparent 50%)
             `,
-            animation: 'fogWisps 20s ease-in-out infinite alternate'
+            animation: 'fogWisps 30s ease-in-out infinite alternate',
+            willChange: 'transform'
           }} />
         </div>
       )}
@@ -1490,20 +1568,18 @@ export default function Game() {
       )}
       
       
-      {/* Slime decorations - hide during combat */}
+      {/* Slime decorations - hide during combat (blur filters removed for performance) */}
       {!isCombatFullscreen && (
         <>
           {/* Green slime pool - bottom left */}
           <div className="absolute bottom-[15%] left-[8%] w-20 h-10 pointer-events-none opacity-60" style={{
             background: 'radial-gradient(ellipse at center, rgba(80,180,80,0.5) 0%, rgba(50,120,50,0.3) 50%, transparent 70%)',
-            borderRadius: '50%',
-            filter: 'blur(2px)'
+            borderRadius: '50%'
           }} />
           {/* Purple slime drip - top left */}
           <div className="absolute top-[25%] left-[5%] w-3 h-16 pointer-events-none opacity-50" style={{
             background: 'linear-gradient(180deg, rgba(140,80,180,0.6) 0%, rgba(100,50,140,0.4) 60%, transparent 100%)',
-            borderRadius: '0 0 50% 50%',
-            filter: 'blur(1px)'
+            borderRadius: '0 0 50% 50%'
           }} />
           {/* Green slime drops - right side */}
           <div className="absolute top-[40%] right-[6%] w-4 h-4 pointer-events-none opacity-50" style={{
@@ -1517,14 +1593,12 @@ export default function Game() {
           {/* Purple slime pool - bottom right */}
           <div className="absolute bottom-[20%] right-[10%] w-16 h-8 pointer-events-none opacity-50" style={{
             background: 'radial-gradient(ellipse at center, rgba(120,60,160,0.5) 0%, rgba(80,40,120,0.3) 50%, transparent 70%)',
-            borderRadius: '50%',
-            filter: 'blur(2px)'
+            borderRadius: '50%'
           }} />
           {/* Green slime line - left side */}
           <div className="absolute top-[55%] left-[3%] w-2 h-24 pointer-events-none opacity-40" style={{
             background: 'linear-gradient(180deg, transparent 0%, rgba(70,150,70,0.4) 20%, rgba(90,180,90,0.5) 50%, rgba(60,130,60,0.3) 80%, transparent 100%)',
-            borderRadius: '50%',
-            filter: 'blur(1px)'
+            borderRadius: '50%'
           }} />
           {/* Small purple drops */}
           <div className="absolute bottom-[35%] left-[12%] w-3 h-3 pointer-events-none opacity-45" style={{
@@ -1967,6 +2041,8 @@ export default function Game() {
                 className="w-full h-full" 
                 renderWidth={RESOLUTION_PRESETS[graphicsQuality].width}
                 renderHeight={RESOLUTION_PRESETS[graphicsQuality].height}
+                visualX={visualPos.x}
+                visualY={visualPos.y}
               />
               
               {/* Mini Map in top left (toggle with M key) - hide during combat fullscreen */}

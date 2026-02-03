@@ -6,6 +6,8 @@ interface DungeonViewProps {
   className?: string;
   renderWidth?: number;
   renderHeight?: number;
+  visualX?: number;  // Optional interpolated X position for smooth movement
+  visualY?: number;  // Optional interpolated Y position for smooth movement
 }
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
@@ -18,10 +20,13 @@ function getTexturesForLevel(level: number): { wall: string; floor: string } {
   };
 }
 
-export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600 }: DungeonViewProps) {
+export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, door: null });
   const currentLevelRef = useRef<number | null>(null);
+  
+  // Dirty tracking to skip redundant redraws
+  const lastRenderState = useRef<{ x: number; y: number; dir: number; level: number; width: number; height: number } | null>(null);
 
   // Load textures based on current dungeon level (unique textures for each level 1-10)
   useEffect(() => {
@@ -45,15 +50,36 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     }
   }, [gameData.level]);
 
-  // Redraw when game data or resolution changes
+  // Redraw when game data, visual position, or resolution changes
   useEffect(() => {
     draw();
-  }, [gameData, renderWidth, renderHeight]);
+  }, [gameData, renderWidth, renderHeight, visualX, visualY]);
 
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    
+    // Use interpolated visual position if provided, otherwise use logical position
+    const currentX = visualX !== undefined ? visualX : gameData.x;
+    const currentY = visualY !== undefined ? visualY : gameData.y;
+    
+    // Dirty check - skip redraw if nothing changed (with small tolerance for floating point)
+    const last = lastRenderState.current;
+    if (last && 
+        Math.abs(last.x - currentX) < 0.001 && 
+        Math.abs(last.y - currentY) < 0.001 && 
+        last.dir === gameData.dir && 
+        last.level === gameData.level &&
+        last.width === renderWidth &&
+        last.height === renderHeight) {
+      return; // Skip redraw - nothing changed
+    }
+    
+    // Update last render state
+    lastRenderState.current = { x: currentX, y: currentY, dir: gameData.dir, level: gameData.level, width: renderWidth, height: renderHeight };
+    
+    // Get context with alpha:false for better performance
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     // Clear screen
@@ -62,8 +88,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
 
     // Simple Raycaster Settings
     const map = gameData.map;
-    const posX = gameData.x + 0.5; // Center inside tile
-    const posY = gameData.y + 0.5;
+    const posX = currentX + 0.5;
+    const posY = currentY + 0.5;
     
     // Direction vectors based on cardinal direction (0=N, 1=E, 2=S, 3=W)
     let dirX = 0, dirY = 0, planeX = 0, planeY = 0;
