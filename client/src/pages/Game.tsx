@@ -2311,21 +2311,21 @@ export default function Game() {
                   
                   {/* Monster display with front/back row layout for up to 8 monsters */}
                   <div className={`absolute inset-0 z-10 flex items-end justify-center pointer-events-none ${
-                    isCombatFullscreen ? 'pb-4' : 'pb-20'
+                    isCombatFullscreen ? 'pb-4 pt-16' : 'pb-20'
                   }`}>
-                    <div className="relative w-full max-w-5xl h-full flex flex-col justify-end animate-in fade-in zoom-in duration-300">
+                    <div className="relative w-full max-w-5xl h-full flex flex-col justify-end items-center animate-in fade-in zoom-in duration-300 overflow-hidden">
                       {/* Back Row (positions 4-7) - smaller, behind front row */}
                       {combatState.monsters.length > 4 && (
-                        <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-6 mb-[-40px]' : 'gap-2 mb-[-20px]'} z-10`}>
+                        <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-4 mb-[-20px]' : 'gap-2 mb-[-15px]'} z-10`}>
                           {combatState.monsters.slice(4, 8).map((monster, idx) => {
                             const actualIdx = idx + 4;
                             const getBackRowSize = () => {
                               if (isCombatFullscreen) {
-                                if (combatState.monsters.length <= 5) return 'w-[200px] h-[200px] md:w-[260px] md:h-[260px] lg:w-[300px] lg:h-[300px]';
-                                if (combatState.monsters.length <= 6) return 'w-[160px] h-[160px] md:w-[200px] md:h-[200px] lg:w-[240px] lg:h-[240px]';
-                                return 'w-[140px] h-[140px] md:w-[170px] md:h-[170px] lg:w-[200px] lg:h-[200px]';
+                                if (combatState.monsters.length <= 5) return 'w-[140px] h-[140px] md:w-[180px] md:h-[180px] lg:w-[200px] lg:h-[200px]';
+                                if (combatState.monsters.length <= 6) return 'w-[120px] h-[120px] md:w-[150px] md:h-[150px] lg:w-[170px] lg:h-[170px]';
+                                return 'w-[100px] h-[100px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]';
                               }
-                              return combatState.monsters.length <= 6 ? 'w-28 h-28' : 'w-24 h-24';
+                              return combatState.monsters.length <= 6 ? 'w-24 h-24' : 'w-20 h-20';
                             };
                             return (
                               <div 
@@ -2352,9 +2352,9 @@ export default function Game() {
                                     />
                                     <div 
                                       className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/40 blur-md ${
-                                        isCombatFullscreen ? 'w-[160px] h-6' : 'w-20 h-4'
+                                        isCombatFullscreen ? 'w-[100px] h-4' : 'w-16 h-3'
                                       }`}
-                                      style={{ transform: 'translateX(-50%) translateY(8px)' }}
+                                      style={{ transform: 'translateX(-50%) translateY(6px)' }}
                                     />
                                   </>
                                 ) : (
@@ -2367,20 +2367,20 @@ export default function Game() {
                       )}
                       
                       {/* Front Row (positions 0-3) - larger, in front */}
-                      <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-8' : 'gap-3'} z-20`}>
+                      <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-4' : 'gap-2'} z-20`}>
                         {combatState.monsters.slice(0, 4).map((monster, idx) => {
                           const getFrontRowSize = () => {
                             if (isCombatFullscreen) {
-                              if (combatState.monsters.length === 1) return 'w-[400px] h-[400px] md:w-[500px] md:h-[500px] lg:w-[600px] lg:h-[600px]';
-                              if (combatState.monsters.length === 2) return 'w-[280px] h-[280px] md:w-[350px] md:h-[350px] lg:w-[420px] lg:h-[420px]';
-                              if (combatState.monsters.length === 3) return 'w-[220px] h-[220px] md:w-[280px] md:h-[280px] lg:w-[340px] lg:h-[340px]';
-                              if (combatState.monsters.length <= 6) return 'w-[180px] h-[180px] md:w-[220px] md:h-[220px] lg:w-[280px] lg:h-[280px]';
-                              return 'w-[160px] h-[160px] md:w-[200px] md:h-[200px] lg:w-[240px] lg:h-[240px]';
+                              if (combatState.monsters.length === 1) return 'w-[280px] h-[280px] md:w-[350px] md:h-[350px] lg:w-[400px] lg:h-[400px]';
+                              if (combatState.monsters.length === 2) return 'w-[200px] h-[200px] md:w-[260px] md:h-[260px] lg:w-[300px] lg:h-[300px]';
+                              if (combatState.monsters.length === 3) return 'w-[160px] h-[160px] md:w-[200px] md:h-[200px] lg:w-[240px] lg:h-[240px]';
+                              if (combatState.monsters.length <= 6) return 'w-[140px] h-[140px] md:w-[180px] md:h-[180px] lg:w-[200px] lg:h-[200px]';
+                              return 'w-[120px] h-[120px] md:w-[150px] md:h-[150px] lg:w-[180px] lg:h-[180px]';
                             }
-                            if (combatState.monsters.length === 1) return 'w-52 h-52';
-                            if (combatState.monsters.length === 2) return 'w-40 h-40';
-                            if (combatState.monsters.length === 3) return 'w-32 h-32';
-                            return 'w-28 h-28';
+                            if (combatState.monsters.length === 1) return 'w-44 h-44';
+                            if (combatState.monsters.length === 2) return 'w-36 h-36';
+                            if (combatState.monsters.length === 3) return 'w-28 h-28';
+                            return 'w-24 h-24';
                           };
                           return (
                             <div 
@@ -2408,12 +2408,12 @@ export default function Game() {
                                   <div 
                                     className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
                                       isCombatFullscreen
-                                        ? combatState.monsters.length === 1 ? 'w-[360px] h-14' :
-                                          combatState.monsters.length === 2 ? 'w-[260px] h-10' : 'w-[180px] h-8'
-                                        : combatState.monsters.length === 1 ? 'w-40 h-6' :
-                                          combatState.monsters.length === 2 ? 'w-28 h-5' : 'w-24 h-4'
+                                        ? combatState.monsters.length === 1 ? 'w-[200px] h-8' :
+                                          combatState.monsters.length === 2 ? 'w-[150px] h-6' : 'w-[100px] h-4'
+                                        : combatState.monsters.length === 1 ? 'w-32 h-5' :
+                                          combatState.monsters.length === 2 ? 'w-24 h-4' : 'w-20 h-3'
                                     }`}
-                                    style={{ transform: 'translateX(-50%) translateY(12px)' }}
+                                    style={{ transform: 'translateX(-50%) translateY(8px)' }}
                                   />
                                 </>
                               ) : (
