@@ -8,23 +8,57 @@ interface DungeonViewProps {
   renderHeight?: number;
 }
 
+// Dungeon themes based on floor level
+type DungeonTheme = 'stone' | 'crypt' | 'ice' | 'forest' | 'temple';
+
+const THEME_TEXTURES: Record<DungeonTheme, { wall: string; floor: string }> = {
+  stone: { wall: '/assets/textures/wall_stone.png', floor: '/assets/textures/floor_cobble.png' },
+  crypt: { wall: '/assets/textures/wall_crypt.png', floor: '/assets/textures/floor_crypt.png' },
+  ice: { wall: '/assets/textures/wall_ice.png', floor: '/assets/textures/floor_ice.png' },
+  forest: { wall: '/assets/textures/wall_forest.png', floor: '/assets/textures/floor_forest.png' },
+  temple: { wall: '/assets/textures/wall_temple.png', floor: '/assets/textures/floor_temple.png' },
+};
+
+// Determine theme based on dungeon level
+function getThemeForLevel(level: number): DungeonTheme {
+  // Level 1-2: Stone (starting dungeon)
+  // Level 3-4: Forest (overgrown ruins)
+  // Level 5-6: Crypt (deeper crypts)
+  // Level 7-8: Ice (frozen depths)
+  // Level 9+: Temple (ancient temple)
+  if (level <= 2) return 'stone';
+  if (level <= 4) return 'forest';
+  if (level <= 6) return 'crypt';
+  if (level <= 8) return 'ice';
+  return 'temple';
+}
+
 export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600 }: DungeonViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, door: null });
+  const currentThemeRef = useRef<DungeonTheme | null>(null);
 
-  // Load textures once
+  // Load textures based on current dungeon level theme
   useEffect(() => {
-    const wallImg = new Image();
-    wallImg.src = "/assets/textures/wall_stone.jpg";
-    const floorImg = new Image();
-    floorImg.src = "/assets/textures/floor_cobble.jpg";
-    const doorImg = new Image();
-    doorImg.src = "/assets/textures/door_metal.png";
+    const theme = getThemeForLevel(gameData.level);
+    
+    // Only reload textures if theme changed
+    if (currentThemeRef.current !== theme) {
+      currentThemeRef.current = theme;
+      const texturePaths = THEME_TEXTURES[theme];
+      
+      const wallImg = new Image();
+      wallImg.src = texturePaths.wall;
+      const floorImg = new Image();
+      floorImg.src = texturePaths.floor;
+      const doorImg = new Image();
+      doorImg.src = "/assets/textures/door_metal.png";
 
-    wallImg.onload = () => { texturesRef.current.wall = wallImg; draw(); };
-    floorImg.onload = () => { texturesRef.current.floor = floorImg; draw(); };
-    doorImg.onload = () => { texturesRef.current.door = doorImg; draw(); };
-  }, []);
+      wallImg.onload = () => { texturesRef.current.wall = wallImg; draw(); };
+      floorImg.onload = () => { texturesRef.current.floor = floorImg; draw(); };
+      doorImg.onload = () => { texturesRef.current.door = doorImg; draw(); };
+    }
+  }, [gameData.level]);
 
   // Redraw when game data or resolution changes
   useEffect(() => {
