@@ -2422,7 +2422,7 @@ export default function Game() {
               </div>
             </div>
             
-            <div className="p-4">
+            <div className="p-4 overflow-y-auto max-h-[calc(85vh-80px)]">
               {/* Character Selection */}
               <div className="flex gap-2 mb-4">
                 {game.party.map((char, idx) => (
