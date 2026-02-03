@@ -15,21 +15,48 @@ A retro-styled first-person dungeon crawler RPG inspired by classic games like "
 - FLEE button (ESC key) to exit combat
 - Minimap and side panels hidden during combat for immersion
 
-### Equipment System Overhaul
+### Massive Equipment Expansion (v2)
 - Expanded from 6 to 11 equipment slots: weapon, shield (Fighter), armor, helmet, gloves, boots, necklace, ring1, ring2, relic (Mage), offhand (Monk)
-- New 9 thematic equipment sets with 243 total items:
-  - **Blade Dancer** - Speed/attack focused (Fighter/Monk)
-  - **Bulwark Sentinel** - Maximum defense (Fighter)
-  - **Vampiric Embrace** - Lifesteal theme (Fighter/Monk)
-  - **Wind Dancer** - Evasion/speed (all classes)
-  - **Riposte** - Counter-attack (Fighter)
-  - **Frozen Wasteland** - Ice magic (Mage)
-  - **Inferno Blaze** - Fire damage (Mage)
-  - **Storm Caller** - Lightning (Mage/Monk)
-  - **Earthen Colossus** - Earth/defense (Monk)
-- Added 'legendary' rarity tier
+- **18 thematic equipment sets** with **519 total items** (486 set items + 33 starter/common items)
+- Each set has 9 pieces per class (27 items per set), allowing full 9-piece set bonuses
+- Equipment data now stored in `client/src/lib/equipment-data.ts` for maintainability
+
+#### Starter Sets (Uncommon - Early Game)
+  - **Warrior's Might** - Defensive Evolution (+Defense, +HP)
+  - **Hunter's Focus** - Speed & Critical hits (+Speed, +Crit, +Penetration)
+  - **Brute Force** - Raw Attack Power (+Attack, +Defense Penetration)
+  - **Elemental Apprentice** - Mage elemental magic (+MP, +Spell Power)
+  - **Arcane Scholar** - Spell Efficiency (+Spell Power, +MP)
+  - **Battle Mage** - Hybrid Fighter (+Attack, +MP, +Lifesteal at 9p)
+  - **Martial Disciple** - Balanced martial arts (+Attack, +Speed, +Crit at 9p)
+  - **Shadow Stalker** - Speed & Evasion (+Speed, +Evasion, +Crit Damage)
+  - **Iron Body** - Defense & Sustain (+HP, +Defense, +On-hit Heal at 9p)
+
+#### Advanced Sets (Epic - Endgame)
+  - **Blade Dancer** - Maximum Damage (+Attack, +Crit Chance, +Crit Damage)
+  - **Bulwark Sentinel** - Ultimate Defense (+Defense, +HP, +Counter at 9p)
+  - **Vampiric Embrace** - Lifesteal (+Lifesteal up to 30%, +Attack)
+  - **Wind Dancer** - Speed & Evasion (+Speed up to 60%, +Evasion up to 35%)
+  - **Riposte** - Counter Attacks (+Counter up to 50%, +Defense)
+  - **Frozen Wasteland** - Ice Control (+Attack, +Slow Effect up to 50%)
+  - **Inferno Blaze** - Fire DoT (+Attack, +Burn Damage up to 25/turn)
+  - **Storm Caller** - Lightning Chain (+Attack, +Chain Damage up to 75%)
+  - **Earthen Colossus** - Earth/Defense (+Defense up to 70%, +HP up to 40%)
+
+#### Set Bonus Mechanics
+- **Percentage bonuses**: Attack%, Defense%, HP%, MP%, Speed%
+- **Critical system**: Crit chance (10-25%), Crit damage (25-50%)
+- **Evasion**: Dodge chance (10-35%)
+- **Lifesteal**: Heal % of damage dealt (10-30%)
+- **Counter-attacks**: Chance to counter when hit (15-50%)
+- **Defense Penetration**: Ignore % of enemy defense (10-25%)
+- **Elemental effects**: Ice slow (10-50%), Fire burn (5-25 DoT), Lightning chain (25-75%)
+- **On-hit healing**: Fixed HP per hit (Iron Body 9p: 3 HP)
+
+#### Additional Features
+- 'legendary' rarity tier for top-tier items
 - Class-specific slots: Shield (Fighter only), Relic (Mage only), Offhand (Monk only)
-- Ring slot now has two positions (ring1, ring2) for dual ring equipping
+- Ring slot has two positions (ring1, ring2) for dual ring equipping
 - Old saves are automatically migrated to new equipment format
 
 ## User Preferences
