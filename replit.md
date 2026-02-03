@@ -6,16 +6,15 @@ A retro-styled first-person dungeon crawler RPG inspired by classic games like "
 
 ## Recent Changes (Feb 2026)
 
-### Multi-Monster Combat with Front/Back Rows
-- Supports up to **8 monsters** per encounter with front/back row formation
-- Front row (positions 0-3): Display larger sprites, positioned in front
-- Back row (positions 4-7): Display smaller sprites, positioned behind front row
-- Monster spawning scales with dungeon depth:
-  - Level 1-2: 1-3 monsters
-  - Level 3-4: 1-5 monsters  
-  - Level 5+: 1-8 monsters with back row chance
-- Combat sidebar shows row indicators [F]/[B] when 5+ monsters present
-- Color-coded borders: amber/orange for front row, cyan for back row
+### Combat System
+- Max **3 monsters** per encounter in single-row formation for large sprite display
+- Monster sprite sizes: 1 monster=580px, 2=500px, 3=420px on large screens
+- Fullscreen combat with enhanced atmospheric effects
+
+### Performance Optimizations
+- **Smooth Movement Interpolation**: Camera slides smoothly between tiles at 12 tiles/sec using requestAnimationFrame, eliminating choppy tile-to-tile snapping
+- **Canvas Dirty Checking**: DungeonView skips redundant redraws when position/direction/level unchanged; uses alpha:false context for GPU performance
+- **Atmospheric Effects Optimized**: Reduced dust particles from 15 to 8, added will-change CSS hints, removed blur filters from slime decorations, slowed animation cycles (dust 15-27s, fog 30-35s)
 
 ### Expanded Abilities (4 per Class)
 - **Fighter**: Strike, Heavy Blow, Shield Bash, **Provoke** (forces enemy to attack you)
