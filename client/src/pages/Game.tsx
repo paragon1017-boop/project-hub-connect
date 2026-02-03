@@ -235,10 +235,10 @@ export default function Game() {
     // Random Encounter Chance (10%) - not on ladder tiles
     if (tile === TILE_FLOOR && Math.random() < 0.1) {
       // Spawn 1-5 monsters, more likely to have multiple on deeper floors
-      // Level 1-2: 1-2 monsters, Level 3-4: 1-3 monsters, Level 5+: 1-5 monsters
+      // Level 1-2: 1-2 monsters, Level 3+: 1-3 monsters (max 3)
       const baseCount = 1 + Math.floor(Math.random() * 2); // 1-2 base
-      const levelBonus = Math.floor(currentGame.level / 3); // +1 every 3 levels
-      const maxMonsters = Math.min(5, 2 + Math.floor(currentGame.level / 2)); // Cap at 5, scales slower
+      const levelBonus = currentGame.level >= 3 ? 1 : 0; // +1 at level 3+
+      const maxMonsters = Math.min(3, 2 + Math.floor(currentGame.level / 3)); // Cap at 3
       const extraMonsters = Math.random() < 0.25 + (currentGame.level * 0.05) ? levelBonus : 0; // Chance for extras
       const monsterCount = Math.min(maxMonsters, baseCount + extraMonsters);
       const monsters: Monster[] = [];
@@ -1541,7 +1541,7 @@ export default function Game() {
           <div className="fixed top-0 left-72 right-80 z-[100] p-3 bg-gradient-to-b from-black/95 via-black/80 to-transparent">
             <div className="flex flex-nowrap gap-2 justify-center overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
               {combatState.monsters.map((monster, idx) => {
-                const barWidth = combatState.monsters.length <= 3 ? 'w-44' : combatState.monsters.length <= 4 ? 'w-36' : 'w-32';
+                const barWidth = combatState.monsters.length === 1 ? 'w-56' : combatState.monsters.length === 2 ? 'w-48' : 'w-44';
                 return (
                   <div 
                     key={monster.id}
@@ -2055,24 +2055,20 @@ export default function Game() {
                     isCombatFullscreen ? 'pt-6' : 'pb-10'
                   }`}>
                     <div className="relative w-full flex flex-col justify-center items-center animate-in fade-in zoom-in duration-300">
-                      {/* All monsters in single row (max 5) */}
+                      {/* All monsters in single row (max 3) */}
                       <div className="flex items-end justify-center z-20" style={{ gap: isCombatFullscreen ? '-15px' : '4px' }}>
-                        {combatState.monsters.slice(0, 5).map((monster, idx) => {
+                        {combatState.monsters.slice(0, 3).map((monster, idx) => {
                           const getMonsterSize = () => {
                             if (isCombatFullscreen) {
-                              // Large sizes for all monster counts, can overlap
-                              if (combatState.monsters.length === 1) return 'w-[360px] h-[360px] md:w-[450px] md:h-[450px] lg:w-[520px] lg:h-[520px]';
-                              if (combatState.monsters.length === 2) return 'w-[300px] h-[300px] md:w-[380px] md:h-[380px] lg:w-[450px] lg:h-[450px]';
-                              if (combatState.monsters.length === 3) return 'w-[260px] h-[260px] md:w-[320px] md:h-[320px] lg:w-[380px] lg:h-[380px]';
-                              if (combatState.monsters.length === 4) return 'w-[220px] h-[220px] md:w-[280px] md:h-[280px] lg:w-[340px] lg:h-[340px]';
-                              // 5 monsters
-                              return 'w-[200px] h-[200px] md:w-[250px] md:h-[250px] lg:w-[300px] lg:h-[300px]';
+                              // Large sizes for 1-3 monsters
+                              if (combatState.monsters.length === 1) return 'w-[400px] h-[400px] md:w-[500px] md:h-[500px] lg:w-[580px] lg:h-[580px]';
+                              if (combatState.monsters.length === 2) return 'w-[320px] h-[320px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px]';
+                              // 3 monsters
+                              return 'w-[280px] h-[280px] md:w-[360px] md:h-[360px] lg:w-[420px] lg:h-[420px]';
                             }
-                            if (combatState.monsters.length === 1) return 'w-52 h-52';
-                            if (combatState.monsters.length === 2) return 'w-44 h-44';
-                            if (combatState.monsters.length === 3) return 'w-36 h-36';
-                            if (combatState.monsters.length === 4) return 'w-32 h-32';
-                            return 'w-28 h-28';
+                            if (combatState.monsters.length === 1) return 'w-56 h-56';
+                            if (combatState.monsters.length === 2) return 'w-48 h-48';
+                            return 'w-40 h-40';
                           };
                           return (
                             <div 
@@ -2100,13 +2096,10 @@ export default function Game() {
                                   <div 
                                     className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
                                       isCombatFullscreen
-                                        ? combatState.monsters.length === 1 ? 'w-[320px] h-12' :
-                                          combatState.monsters.length === 2 ? 'w-[260px] h-10' :
-                                          combatState.monsters.length === 3 ? 'w-[220px] h-9' :
-                                          combatState.monsters.length === 4 ? 'w-[200px] h-8' : 'w-[180px] h-7'
-                                        : combatState.monsters.length === 1 ? 'w-40 h-6' :
-                                          combatState.monsters.length === 2 ? 'w-32 h-5' :
-                                          combatState.monsters.length === 3 ? 'w-28 h-4' : 'w-24 h-4'
+                                        ? combatState.monsters.length === 1 ? 'w-[360px] h-14' :
+                                          combatState.monsters.length === 2 ? 'w-[300px] h-12' : 'w-[260px] h-10'
+                                        : combatState.monsters.length === 1 ? 'w-44 h-6' :
+                                          combatState.monsters.length === 2 ? 'w-36 h-5' : 'w-32 h-5'
                                     }`}
                                     style={{ transform: 'translateX(-50%) translateY(8px)' }}
                                   />
@@ -2114,13 +2107,10 @@ export default function Game() {
                               ) : (
                                 <Skull className={`text-red-500 drop-shadow-lg ${
                                   isCombatFullscreen 
-                                    ? combatState.monsters.length === 1 ? 'w-96 h-96' :
-                                      combatState.monsters.length === 2 ? 'w-72 h-72' : 
-                                      combatState.monsters.length === 3 ? 'w-60 h-60' :
-                                      combatState.monsters.length === 4 ? 'w-52 h-52' : 'w-44 h-44'
-                                    : combatState.monsters.length === 1 ? 'w-40 h-40' :
-                                      combatState.monsters.length === 2 ? 'w-32 h-32' :
-                                      combatState.monsters.length === 3 ? 'w-28 h-28' : 'w-24 h-24'
+                                    ? combatState.monsters.length === 1 ? 'w-[120px] h-[120px]' :
+                                      combatState.monsters.length === 2 ? 'w-[100px] h-[100px]' : 'w-[80px] h-[80px]'
+                                    : combatState.monsters.length === 1 ? 'w-44 h-44' :
+                                      combatState.monsters.length === 2 ? 'w-36 h-36' : 'w-32 h-32'
                                 }`} />
                               )}
                             </div>
