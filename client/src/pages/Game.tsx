@@ -86,6 +86,7 @@ export default function Game() {
   const [showInventory, setShowInventory] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [helpFilter, setHelpFilter] = useState<string>('all');
+  const [helpTab, setHelpTab] = useState<'items' | 'sets'>('items');
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('high');
   const [showSettings, setShowSettings] = useState(false);
   const [isCombatFullscreen, setIsCombatFullscreen] = useState(false);
@@ -2256,7 +2257,7 @@ export default function Game() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-amber-400 font-pixel text-lg" data-testid="text-help-title">EQUIPMENT INDEX</h2>
+              <h2 className="text-amber-400 font-pixel text-lg" data-testid="text-help-title">HELP</h2>
               <RetroButton 
                 onClick={() => setShowHelp(false)}
                 className="w-8 h-8 p-0"
@@ -2267,75 +2268,162 @@ export default function Game() {
               </RetroButton>
             </div>
             
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-1 p-3 border-b border-white/10 bg-black/30">
-              {['all', 'weapon', 'armor', 'helmet', 'gloves', 'boots', 'shield', 'necklace', 'ring', 'relic', 'offhand'].map(filter => (
-                <RetroButton
-                  key={filter}
-                  onClick={() => setHelpFilter(filter)}
-                  className="px-3 py-1 text-xs capitalize"
-                  variant={helpFilter === filter ? 'default' : 'ghost'}
-                  data-testid={`filter-${filter}`}
-                >
-                  {filter}
-                </RetroButton>
-              ))}
+            {/* Main Tabs: Items / Sets */}
+            <div className="flex gap-2 p-3 border-b border-white/10 bg-black/40">
+              <RetroButton
+                onClick={() => setHelpTab('items')}
+                className="px-4 py-2 text-sm"
+                variant={helpTab === 'items' ? 'default' : 'ghost'}
+                data-testid="tab-items"
+              >
+                Equipment Index
+              </RetroButton>
+              <RetroButton
+                onClick={() => setHelpTab('sets')}
+                className="px-4 py-2 text-sm"
+                variant={helpTab === 'sets' ? 'default' : 'ghost'}
+                data-testid="tab-sets"
+              >
+                Set Bonuses
+              </RetroButton>
             </div>
             
-            {/* Equipment List */}
-            <div className="overflow-y-auto max-h-[calc(80vh-140px)] p-4">
-              <div className="grid gap-2">
-                {EQUIPMENT_DATABASE
-                  .filter(item => helpFilter === 'all' || item.slot === helpFilter)
-                  .sort((a, b) => {
-                    const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
-                    return (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0);
-                  })
-                  .map(item => {
-                    const rarityColors: Record<string, string> = {
-                      common: 'text-gray-400 border-gray-600/30',
-                      uncommon: 'text-green-400 border-green-600/30',
-                      rare: 'text-blue-400 border-blue-600/30',
-                      epic: 'text-purple-400 border-purple-600/30',
-                      legendary: 'text-amber-400 border-amber-600/30'
-                    };
-                    const colorClass = rarityColors[item.rarity] || rarityColors.common;
-                    
-                    return (
-                      <div 
-                        key={item.id}
-                        className={`p-3 rounded-lg border bg-black/40 ${colorClass.split(' ')[1]}`}
-                        data-testid={`item-${item.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-semibold ${colorClass.split(' ')[0]}`} data-testid={`text-name-${item.id}`}>{item.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground capitalize" data-testid={`text-slot-${item.id}`}>{item.slot}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded bg-white/5 capitalize ${colorClass.split(' ')[0]}`} data-testid={`text-rarity-${item.id}`}>{item.rarity}</span>
+            {/* Items Tab - Filter Tabs */}
+            {helpTab === 'items' && (
+              <div className="flex flex-wrap gap-1 p-3 border-b border-white/10 bg-black/30">
+                {['all', 'weapon', 'armor', 'helmet', 'gloves', 'boots', 'shield', 'necklace', 'ring', 'relic', 'offhand'].map(filter => (
+                  <RetroButton
+                    key={filter}
+                    onClick={() => setHelpFilter(filter)}
+                    className="px-3 py-1 text-xs capitalize"
+                    variant={helpFilter === filter ? 'default' : 'ghost'}
+                    data-testid={`filter-${filter}`}
+                  >
+                    {filter}
+                  </RetroButton>
+                ))}
+              </div>
+            )}
+            
+            {/* Equipment List (Items Tab) */}
+            {helpTab === 'items' && (
+              <div className="overflow-y-auto max-h-[calc(80vh-180px)] p-4">
+                <div className="grid gap-2">
+                  {EQUIPMENT_DATABASE
+                    .filter(item => helpFilter === 'all' || item.slot === helpFilter)
+                    .sort((a, b) => {
+                      const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+                      return (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0);
+                    })
+                    .map(item => {
+                      const rarityColors: Record<string, string> = {
+                        common: 'text-gray-400 border-gray-600/30',
+                        uncommon: 'text-green-400 border-green-600/30',
+                        rare: 'text-blue-400 border-blue-600/30',
+                        epic: 'text-purple-400 border-purple-600/30',
+                        legendary: 'text-amber-400 border-amber-600/30'
+                      };
+                      const colorClass = rarityColors[item.rarity] || rarityColors.common;
+                      
+                      return (
+                        <div 
+                          key={item.id}
+                          className={`p-3 rounded-lg border bg-black/40 ${colorClass.split(' ')[1]}`}
+                          data-testid={`item-${item.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`font-semibold ${colorClass.split(' ')[0]}`} data-testid={`text-name-${item.id}`}>{item.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground capitalize" data-testid={`text-slot-${item.id}`}>{item.slot}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded bg-white/5 capitalize ${colorClass.split(' ')[0]}`} data-testid={`text-rarity-${item.id}`}>{item.rarity}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
+                              <div className="flex flex-wrap gap-2 mt-2 text-xs" data-testid={`text-stats-${item.id}`}>
+                                {item.attack > 0 && <span className="text-red-400">+{item.attack} ATK</span>}
+                                {item.defense > 0 && <span className="text-blue-400">+{item.defense} DEF</span>}
+                                {item.hp > 0 && <span className="text-green-400">+{item.hp} HP</span>}
+                                {item.mp > 0 && <span className="text-cyan-400">+{item.mp} MP</span>}
+                                {item.speed > 0 && <span className="text-yellow-400">+{item.speed} SPD</span>}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
-                            <div className="flex flex-wrap gap-2 mt-2 text-xs" data-testid={`text-stats-${item.id}`}>
-                              {item.attack > 0 && <span className="text-red-400">+{item.attack} ATK</span>}
-                              {item.defense > 0 && <span className="text-blue-400">+{item.defense} DEF</span>}
-                              {item.hp > 0 && <span className="text-green-400">+{item.hp} HP</span>}
-                              {item.mp > 0 && <span className="text-cyan-400">+{item.mp} MP</span>}
-                              {item.speed > 0 && <span className="text-yellow-400">+{item.speed} SPD</span>}
+                            <div className="text-right text-[10px] text-muted-foreground">
+                              <div data-testid={`text-jobs-${item.id}`}>{item.allowedJobs.join(', ')}</div>
+                              {item.set && <div className="text-amber-400/70 mt-1" data-testid={`text-set-${item.id}`}>Set: {item.set}</div>}
                             </div>
-                          </div>
-                          <div className="text-right text-[10px] text-muted-foreground">
-                            <div data-testid={`text-jobs-${item.id}`}>{item.allowedJobs.join(', ')}</div>
-                            {item.set && <div className="text-amber-400/70 mt-1" data-testid={`text-set-${item.id}`}>Set: {item.set}</div>}
                           </div>
                         </div>
+                      );
+                    })}
+                </div>
+                <div className="text-center text-muted-foreground text-xs mt-4" data-testid="text-item-count">
+                  {EQUIPMENT_DATABASE.filter(item => helpFilter === 'all' || item.slot === helpFilter).length} items
+                </div>
+              </div>
+            )}
+            
+            {/* Set Bonuses Tab */}
+            {helpTab === 'sets' && (
+              <div className="overflow-y-auto max-h-[calc(80vh-140px)] p-4">
+                <div className="text-sm text-muted-foreground mb-4">
+                  Collect equipment from the same set to unlock powerful bonuses. Each set has 9 pieces per class with bonus thresholds at 2, 4, 6, and 9 pieces equipped.
+                </div>
+                
+                {/* Starter Sets */}
+                <div className="mb-6">
+                  <h3 className="text-green-400 font-semibold mb-3 border-b border-green-600/30 pb-2">Starter Sets (Uncommon - Early Game)</h3>
+                  <div className="grid gap-3">
+                    {Object.entries(SET_BONUSES).slice(0, 9).map(([setName, setData]) => (
+                      <div key={setName} className="p-3 rounded-lg border border-green-600/30 bg-black/40" data-testid={`set-${setName.replace(/\s+/g, '-').toLowerCase()}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <span className="text-green-400 font-semibold">{setData.name}</span>
+                            <span className="text-muted-foreground text-xs ml-2">({setData.theme})</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          {setData.bonuses.map((bonus, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              <span className="text-amber-400 font-medium min-w-[24px]">{bonus.threshold}p:</span>
+                              <span className="text-muted-foreground">{bonus.description}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Advanced Sets */}
+                <div>
+                  <h3 className="text-purple-400 font-semibold mb-3 border-b border-purple-600/30 pb-2">Advanced Sets (Epic - Endgame)</h3>
+                  <div className="grid gap-3">
+                    {Object.entries(SET_BONUSES).slice(9).map(([setName, setData]) => (
+                      <div key={setName} className="p-3 rounded-lg border border-purple-600/30 bg-black/40" data-testid={`set-${setName.replace(/\s+/g, '-').toLowerCase()}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <span className="text-purple-400 font-semibold">{setData.name}</span>
+                            <span className="text-muted-foreground text-xs ml-2">({setData.theme})</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          {setData.bonuses.map((bonus, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              <span className="text-amber-400 font-medium min-w-[24px]">{bonus.threshold}p:</span>
+                              <span className="text-muted-foreground">{bonus.description}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-center text-muted-foreground text-xs mt-4">
+                  {Object.keys(SET_BONUSES).length} equipment sets
+                </div>
               </div>
-              <div className="text-center text-muted-foreground text-xs mt-4" data-testid="text-item-count">
-                {EQUIPMENT_DATABASE.filter(item => helpFilter === 'all' || item.slot === helpFilter).length} items
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
