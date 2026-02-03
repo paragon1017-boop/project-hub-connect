@@ -2218,16 +2218,17 @@ export default function Game() {
                     <div className="absolute inset-0 z-[6] pointer-events-none border-[4px] border-red-500/30 animate-pulse" />
                   )}
                   
-                  {/* Monster Health Bar - Top of Screen */}
+                  {/* Monster Health Bar - Top of Screen - Horizontal row */}
                   {isCombatFullscreen && (
-                    <div className="absolute top-0 left-72 right-64 z-30 p-2 bg-gradient-to-b from-black/80 to-transparent">
-                      <div className="flex flex-wrap gap-2 justify-center max-w-4xl mx-auto">
+                    <div className="absolute top-0 left-72 right-80 z-30 p-2 bg-gradient-to-b from-black/80 to-transparent">
+                      <div className="flex flex-nowrap gap-1 justify-center overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                         {combatState.monsters.map((monster, idx) => {
                           const isBackRow = idx >= 4;
+                          const barWidth = combatState.monsters.length <= 4 ? 'w-36' : combatState.monsters.length <= 6 ? 'w-28' : 'w-24';
                           return (
                             <div 
                               key={monster.id}
-                              className={`flex-shrink-0 px-3 py-1.5 rounded border cursor-pointer transition-all ${
+                              className={`flex-shrink-0 ${barWidth} px-2 py-1 rounded border cursor-pointer transition-all ${
                                 idx === combatState.targetIndex && monster.hp > 0
                                   ? 'border-yellow-400 bg-yellow-400/20 scale-105' 
                                   : isBackRow 
@@ -2235,23 +2236,22 @@ export default function Game() {
                                     : 'border-amber-500/40 bg-black/60'
                               } ${monster.hp <= 0 ? 'opacity-40' : ''}`}
                               onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                              style={{ minWidth: combatState.monsters.length > 4 ? '120px' : '150px' }}
                             >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className={`text-xs font-semibold truncate ${
+                              <div className="flex items-center justify-between gap-1">
+                                <span className={`text-[10px] font-semibold truncate ${
                                   monster.hp <= 0 ? 'text-gray-500 line-through' : isBackRow ? 'text-cyan-400' : 'text-amber-400'
                                 }`}>
                                   {combatState.monsters.length > 4 && (
-                                    <span className="mr-1 opacity-70">[{isBackRow ? 'B' : 'F'}]</span>
+                                    <span className="mr-0.5 opacity-70">{isBackRow ? 'B' : 'F'}</span>
                                   )}
                                   {monster.name}
                                 </span>
                                 {idx === combatState.targetIndex && monster.hp > 0 && (
-                                  <span className="text-yellow-400 text-[10px] flex-shrink-0">◀</span>
+                                  <span className="text-yellow-400 text-[8px] flex-shrink-0">◀</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-2 bg-black/70 rounded-full overflow-hidden">
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <div className="flex-1 h-1.5 bg-black/70 rounded-full overflow-hidden">
                                   <div 
                                     className="h-full transition-all duration-300"
                                     style={{ 
@@ -2260,8 +2260,8 @@ export default function Game() {
                                     }}
                                   />
                                 </div>
-                                <span className="text-[10px] text-white/80 w-14 text-right flex-shrink-0">
-                                  {monster.hp}/{monster.maxHp}
+                                <span className="text-[8px] text-white/80 flex-shrink-0">
+                                  {monster.hp}
                                 </span>
                               </div>
                             </div>
@@ -2278,14 +2278,14 @@ export default function Game() {
                     <div className="relative w-full max-w-5xl flex flex-col justify-center items-center animate-in fade-in zoom-in duration-300 overflow-hidden">
                       {/* Back Row (positions 4-7) - smaller, behind front row */}
                       {combatState.monsters.length > 4 && (
-                        <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-4 mb-[-20px]' : 'gap-2 mb-[-15px]'} z-10`}>
+                        <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-2 mb-[-15px]' : 'gap-2 mb-[-15px]'} z-10`}>
                           {combatState.monsters.slice(4, 8).map((monster, idx) => {
                             const actualIdx = idx + 4;
                             const getBackRowSize = () => {
                               if (isCombatFullscreen) {
-                                if (combatState.monsters.length <= 5) return 'w-[140px] h-[140px] md:w-[180px] md:h-[180px] lg:w-[200px] lg:h-[200px]';
-                                if (combatState.monsters.length <= 6) return 'w-[120px] h-[120px] md:w-[150px] md:h-[150px] lg:w-[170px] lg:h-[170px]';
-                                return 'w-[100px] h-[100px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]';
+                                if (combatState.monsters.length <= 5) return 'w-[90px] h-[90px] md:w-[110px] md:h-[110px] lg:w-[130px] lg:h-[130px]';
+                                if (combatState.monsters.length <= 6) return 'w-[80px] h-[80px] md:w-[95px] md:h-[95px] lg:w-[110px] lg:h-[110px]';
+                                return 'w-[70px] h-[70px] md:w-[80px] md:h-[80px] lg:w-[95px] lg:h-[95px]';
                               }
                               return combatState.monsters.length <= 6 ? 'w-24 h-24' : 'w-20 h-20';
                             };
@@ -2329,15 +2329,16 @@ export default function Game() {
                       )}
                       
                       {/* Front Row (positions 0-3) - larger, in front */}
-                      <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-4' : 'gap-2'} z-20`}>
+                      <div className={`flex items-end justify-center ${isCombatFullscreen ? 'gap-2' : 'gap-2'} z-20`}>
                         {combatState.monsters.slice(0, 4).map((monster, idx) => {
                           const getFrontRowSize = () => {
                             if (isCombatFullscreen) {
-                              if (combatState.monsters.length === 1) return 'w-[280px] h-[280px] md:w-[350px] md:h-[350px] lg:w-[400px] lg:h-[400px]';
-                              if (combatState.monsters.length === 2) return 'w-[200px] h-[200px] md:w-[260px] md:h-[260px] lg:w-[300px] lg:h-[300px]';
-                              if (combatState.monsters.length === 3) return 'w-[160px] h-[160px] md:w-[200px] md:h-[200px] lg:w-[240px] lg:h-[240px]';
-                              if (combatState.monsters.length <= 6) return 'w-[140px] h-[140px] md:w-[180px] md:h-[180px] lg:w-[200px] lg:h-[200px]';
-                              return 'w-[120px] h-[120px] md:w-[150px] md:h-[150px] lg:w-[180px] lg:h-[180px]';
+                              if (combatState.monsters.length === 1) return 'w-[220px] h-[220px] md:w-[280px] md:h-[280px] lg:w-[320px] lg:h-[320px]';
+                              if (combatState.monsters.length === 2) return 'w-[160px] h-[160px] md:w-[200px] md:h-[200px] lg:w-[240px] lg:h-[240px]';
+                              if (combatState.monsters.length === 3) return 'w-[130px] h-[130px] md:w-[160px] md:h-[160px] lg:w-[190px] lg:h-[190px]';
+                              if (combatState.monsters.length <= 5) return 'w-[110px] h-[110px] md:w-[140px] md:h-[140px] lg:w-[160px] lg:h-[160px]';
+                              if (combatState.monsters.length <= 6) return 'w-[100px] h-[100px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]';
+                              return 'w-[85px] h-[85px] md:w-[100px] md:h-[100px] lg:w-[120px] lg:h-[120px]';
                             }
                             if (combatState.monsters.length === 1) return 'w-44 h-44';
                             if (combatState.monsters.length === 2) return 'w-36 h-36';
@@ -2535,12 +2536,12 @@ export default function Game() {
         
         {/* RIGHT SIDEBAR - Battle Log during combat fullscreen */}
         {isCombatFullscreen && (
-          <div className="w-64 h-full bg-black/90 border-l border-primary/30 flex flex-col p-2 z-30">
-            <div className="bg-black/60 rounded border border-white/10 p-2 flex-1 overflow-hidden flex flex-col">
-              <div className="font-pixel text-xs text-primary mb-2">BATTLE LOG</div>
-              <div className="flex-1 space-y-0.5 text-[10px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                {logs.slice(0, 20).map((msg, i) => (
-                  <div key={i} className={`${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.04 }}>
+          <div className="w-80 h-full bg-black/90 border-l border-primary/30 flex flex-col p-2 z-30">
+            <div className="bg-black/60 rounded border border-white/10 p-3 flex-1 overflow-hidden flex flex-col">
+              <div className="font-pixel text-sm text-primary mb-2">BATTLE LOG</div>
+              <div className="flex-1 space-y-1 text-xs overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                {logs.slice(0, 30).map((msg, i) => (
+                  <div key={i} className={`${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.03 }}>
                     {msg}
                   </div>
                 ))}
