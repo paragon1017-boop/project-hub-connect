@@ -1084,6 +1084,245 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
         ctx.fillRect(lightX - 50, torchY - 50, 100, 90);
       }
     }
+    
+    // Floor debris and scattered stones
+    const debrisCount = 5 + Math.floor(decorRandom() * 8);
+    for (let i = 0; i < debrisCount; i++) {
+      const debrisX = 20 + decorRandom() * (w - 40);
+      const debrisY = h - 30 - decorRandom() * 80;
+      const debrisSize = 2 + decorRandom() * 5;
+      const debrisAlpha = 0.3 + decorRandom() * 0.3;
+      
+      // Small rocks/pebbles
+      const grayVal = 40 + Math.floor(decorRandom() * 40);
+      ctx.fillStyle = `rgba(${grayVal}, ${grayVal - 5}, ${grayVal - 10}, ${debrisAlpha})`;
+      ctx.beginPath();
+      ctx.ellipse(debrisX, debrisY, debrisSize, debrisSize * 0.6, decorRandom() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Highlight
+      ctx.fillStyle = `rgba(${grayVal + 30}, ${grayVal + 25}, ${grayVal + 20}, ${debrisAlpha * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(debrisX - 1, debrisY - 1, debrisSize * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Floor bones scattered around
+    const boneCount = Math.floor(decorRandom() * 4);
+    for (let i = 0; i < boneCount; i++) {
+      const boneX = 40 + decorRandom() * (w - 80);
+      const boneY = h - 20 - decorRandom() * 60;
+      const boneLen = 8 + decorRandom() * 12;
+      const boneAngle = decorRandom() * Math.PI;
+      const boneAlpha = 0.4 + decorRandom() * 0.3;
+      
+      ctx.save();
+      ctx.translate(boneX, boneY);
+      ctx.rotate(boneAngle);
+      
+      // Bone shaft
+      ctx.fillStyle = `rgba(200, 190, 170, ${boneAlpha})`;
+      ctx.fillRect(-boneLen/2, -1.5, boneLen, 3);
+      
+      // Bone ends (knobs)
+      ctx.beginPath();
+      ctx.arc(-boneLen/2, 0, 3, 0, Math.PI * 2);
+      ctx.arc(boneLen/2, 0, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    
+    // Occasional skull on floor or wall
+    if (decorRandom() > 0.7) {
+      const skullX = 50 + decorRandom() * (w - 100);
+      const skullY = decorRandom() > 0.5 ? (h - 25 - decorRandom() * 40) : (h/2 + 30 + decorRandom() * 50);
+      const skullSize = 6 + decorRandom() * 4;
+      const skullAlpha = 0.5 + decorRandom() * 0.3;
+      
+      // Skull shape
+      ctx.fillStyle = `rgba(190, 180, 160, ${skullAlpha})`;
+      ctx.beginPath();
+      ctx.ellipse(skullX, skullY, skullSize, skullSize * 1.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eye sockets
+      ctx.fillStyle = `rgba(20, 15, 10, ${skullAlpha})`;
+      ctx.beginPath();
+      ctx.ellipse(skullX - skullSize * 0.35, skullY - skullSize * 0.15, skullSize * 0.25, skullSize * 0.3, 0, 0, Math.PI * 2);
+      ctx.ellipse(skullX + skullSize * 0.35, skullY - skullSize * 0.15, skullSize * 0.25, skullSize * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Nose hole
+      ctx.beginPath();
+      ctx.moveTo(skullX, skullY + skullSize * 0.1);
+      ctx.lineTo(skullX - skullSize * 0.15, skullY + skullSize * 0.35);
+      ctx.lineTo(skullX + skullSize * 0.15, skullY + skullSize * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Teeth suggestion
+      ctx.fillStyle = `rgba(170, 160, 140, ${skullAlpha})`;
+      ctx.fillRect(skullX - skullSize * 0.4, skullY + skullSize * 0.5, skullSize * 0.8, skullSize * 0.3);
+    }
+    
+    // Wall chains hanging
+    if (decorRandom() > 0.6) {
+      const chainX = 30 + decorRandom() * (w - 60);
+      const chainStartY = h/2 - 5;
+      const chainLen = 20 + decorRandom() * 40;
+      const chainAlpha = 0.5 + decorRandom() * 0.3;
+      
+      // Chain links
+      ctx.strokeStyle = `rgba(80, 75, 70, ${chainAlpha})`;
+      ctx.lineWidth = 2;
+      for (let cy = chainStartY; cy < chainStartY + chainLen; cy += 6) {
+        ctx.beginPath();
+        ctx.ellipse(chainX, cy + 3, 2, 3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      
+      // Chain mount on wall
+      ctx.fillStyle = `rgba(60, 55, 50, ${chainAlpha})`;
+      ctx.fillRect(chainX - 4, chainStartY - 2, 8, 5);
+      
+      // Shackle or hook at end
+      if (decorRandom() > 0.5) {
+        const endY = chainStartY + chainLen;
+        ctx.strokeStyle = `rgba(70, 65, 60, ${chainAlpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(chainX, endY + 5, 5, 0, Math.PI);
+        ctx.stroke();
+      }
+    }
+    
+    // Ceiling stalactites/drips
+    const stalCount = 2 + Math.floor(decorRandom() * 4);
+    for (let i = 0; i < stalCount; i++) {
+      const stalX = 30 + decorRandom() * (w - 60);
+      const stalY = h/2 - 10 - decorRandom() * 15;
+      const stalLen = 8 + decorRandom() * 15;
+      const stalAlpha = 0.35 + decorRandom() * 0.25;
+      
+      // Stalactite shape (pointed down)
+      ctx.fillStyle = `rgba(70, 65, 60, ${stalAlpha})`;
+      ctx.beginPath();
+      ctx.moveTo(stalX - 3, stalY);
+      ctx.lineTo(stalX + 3, stalY);
+      ctx.lineTo(stalX, stalY + stalLen);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Water drip at tip
+      if (decorRandom() > 0.5) {
+        ctx.fillStyle = `rgba(100, 120, 140, 0.4)`;
+        ctx.beginPath();
+        ctx.ellipse(stalX, stalY + stalLen + 2, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    // Floor puddles (water)
+    const puddleCount = Math.floor(decorRandom() * 3);
+    for (let i = 0; i < puddleCount; i++) {
+      const puddleX = 50 + decorRandom() * (w - 100);
+      const puddleY = h - 15 - decorRandom() * 50;
+      const puddleW = 15 + decorRandom() * 25;
+      const puddleH = 4 + decorRandom() * 6;
+      
+      // Dark water puddle
+      ctx.fillStyle = 'rgba(30, 40, 50, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(puddleX, puddleY, puddleW, puddleH, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Reflection highlight
+      ctx.fillStyle = 'rgba(80, 100, 120, 0.2)';
+      ctx.beginPath();
+      ctx.ellipse(puddleX - puddleW * 0.2, puddleY - puddleH * 0.3, puddleW * 0.4, puddleH * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Small critters (rats or bugs) - rare
+    if (decorRandom() > 0.8) {
+      const critterX = 30 + decorRandom() * (w - 60);
+      const critterY = h - 12 - decorRandom() * 30;
+      const isRat = decorRandom() > 0.4;
+      
+      if (isRat) {
+        // Small rat silhouette
+        const ratSize = 4 + decorRandom() * 3;
+        ctx.fillStyle = 'rgba(40, 35, 30, 0.6)';
+        
+        // Body
+        ctx.beginPath();
+        ctx.ellipse(critterX, critterY, ratSize, ratSize * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Head
+        ctx.beginPath();
+        ctx.ellipse(critterX + ratSize * 0.8, critterY - ratSize * 0.1, ratSize * 0.4, ratSize * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Tail
+        ctx.strokeStyle = 'rgba(50, 40, 35, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(critterX - ratSize, critterY);
+        ctx.quadraticCurveTo(critterX - ratSize * 1.5, critterY - ratSize * 0.5, critterX - ratSize * 2, critterY + ratSize * 0.3);
+        ctx.stroke();
+        
+        // Ears
+        ctx.fillStyle = 'rgba(50, 40, 35, 0.5)';
+        ctx.beginPath();
+        ctx.arc(critterX + ratSize * 0.7, critterY - ratSize * 0.4, ratSize * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Spider/bug
+        const bugSize = 2 + decorRandom() * 2;
+        ctx.fillStyle = 'rgba(30, 25, 20, 0.6)';
+        
+        // Body
+        ctx.beginPath();
+        ctx.arc(critterX, critterY, bugSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Legs
+        ctx.strokeStyle = 'rgba(30, 25, 20, 0.5)';
+        ctx.lineWidth = 1;
+        for (let leg = 0; leg < 4; leg++) {
+          const legAngle = (leg / 4) * Math.PI - Math.PI * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(critterX, critterY);
+          ctx.lineTo(critterX + Math.cos(legAngle) * bugSize * 2.5, critterY + Math.sin(legAngle) * bugSize * 1.5);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(critterX, critterY);
+          ctx.lineTo(critterX - Math.cos(legAngle) * bugSize * 2.5, critterY + Math.sin(legAngle) * bugSize * 1.5);
+          ctx.stroke();
+        }
+      }
+    }
+    
+    // Scratch marks on walls
+    if (decorRandom() > 0.6) {
+      const scratchX = 60 + decorRandom() * (w - 120);
+      const scratchY = h/2 + 20 + decorRandom() * 60;
+      const scratchCount = 3 + Math.floor(decorRandom() * 2);
+      
+      ctx.strokeStyle = 'rgba(25, 20, 15, 0.4)';
+      ctx.lineWidth = 1;
+      
+      for (let s = 0; s < scratchCount; s++) {
+        const sx = scratchX + s * 4;
+        ctx.beginPath();
+        ctx.moveTo(sx, scratchY);
+        ctx.lineTo(sx + 2 + decorRandom() * 3, scratchY + 15 + decorRandom() * 10);
+        ctx.stroke();
+      }
+    }
+    
     } // end if (!facingDoor)
   };
 
