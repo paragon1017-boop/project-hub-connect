@@ -104,6 +104,7 @@ export default function Game() {
   const [helpTab, setHelpTab] = useState<'items' | 'sets'>('items');
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('high');
   const [showSettings, setShowSettings] = useState(false);
+  const [showCheatMenu, setShowCheatMenu] = useState(false);
   const [isCombatFullscreen, setIsCombatFullscreen] = useState(false);
   const [combatTransition, setCombatTransition] = useState<'none' | 'entering' | 'active'>('none');
   const [selectedCharForEquip, setSelectedCharForEquip] = useState(0);
@@ -424,6 +425,9 @@ export default function Game() {
   
   // Toggle mini map
   useKey('m', () => setShowMiniMap(prev => !prev), {}, []);
+  
+  // Toggle cheat menu (backtick key)
+  useKey('`', () => setShowCheatMenu(prev => !prev), {}, []);
   
   // ESC key to flee combat or close modals
   useKey('Escape', () => {
@@ -2839,6 +2843,327 @@ export default function Game() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Cheat Menu - Press ` to toggle */}
+      {showCheatMenu && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowCheatMenu(false)}>
+          <div 
+            className="bg-gradient-to-b from-red-950 to-stone-950 border-2 border-red-500/50 rounded-lg shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-red-500/30">
+              <h2 className="text-red-400 font-pixel text-lg">CHEAT MENU</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-red-400/60">(Press ` to close)</span>
+                <RetroButton 
+                  onClick={() => setShowCheatMenu(false)}
+                  className="w-8 h-8 p-0"
+                  variant="ghost"
+                  data-testid="button-close-cheats"
+                >
+                  <X className="w-4 h-4" />
+                </RetroButton>
+              </div>
+            </div>
+            
+            <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(80vh-80px)]">
+              {/* Level Controls */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">DUNGEON LEVEL</div>
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(lvl => (
+                    <button
+                      key={lvl}
+                      onClick={() => {
+                        if (game) {
+                          const newGame = { ...game, level: lvl };
+                          setGame(newGame);
+                          saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                          log(`Warped to level ${lvl}!`);
+                        }
+                      }}
+                      className={`px-3 py-1 text-xs rounded transition-colors ${
+                        game?.level === lvl 
+                          ? 'bg-red-500 text-white' 
+                          : 'bg-white/10 text-white/70 hover:bg-white/20'
+                      }`}
+                      data-testid={`cheat-level-${lvl}`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Gold */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">GOLD: {game?.gold || 0}</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newGame = { ...game, gold: game.gold + 100 };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("+100 Gold!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40 rounded transition-colors"
+                    data-testid="cheat-gold-100"
+                  >
+                    +100
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newGame = { ...game, gold: game.gold + 1000 };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("+1000 Gold!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40 rounded transition-colors"
+                    data-testid="cheat-gold-1000"
+                  >
+                    +1000
+                  </button>
+                </div>
+              </div>
+              
+              {/* Party HP/MP */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">PARTY</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newParty = game.party.map(c => ({
+                          ...c,
+                          hp: getEffectiveStats(c).maxHp,
+                          mp: getEffectiveStats(c).maxMp
+                        }));
+                        const newGame = { ...game, party: newParty };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("Party fully healed!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-green-500/20 text-green-400 hover:bg-green-500/40 rounded transition-colors"
+                    data-testid="cheat-heal-party"
+                  >
+                    Full Heal
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newParty = game.party.map(c => ({
+                          ...c,
+                          level: c.level + 1,
+                          xp: 0,
+                          attack: c.attack + 3,
+                          defense: c.defense + 2,
+                          maxHp: c.maxHp + 10,
+                          hp: c.hp + 10,
+                          maxMp: c.maxMp + 5,
+                          mp: c.mp + 5,
+                          speed: c.speed + 1
+                        }));
+                        const newGame = { ...game, party: newParty };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("Party leveled up!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 rounded transition-colors"
+                    data-testid="cheat-level-up"
+                  >
+                    Level Up All
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newParty = game.party.map(c => ({
+                          ...c,
+                          level: c.level + 10,
+                          xp: 0,
+                          attack: c.attack + 30,
+                          defense: c.defense + 20,
+                          maxHp: c.maxHp + 100,
+                          hp: c.maxHp + 100,
+                          maxMp: c.maxMp + 50,
+                          mp: c.maxMp + 50,
+                          speed: c.speed + 10
+                        }));
+                        const newGame = { ...game, party: newParty };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("Party gained 10 levels!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 rounded transition-colors"
+                    data-testid="cheat-level-up-10"
+                  >
+                    +10 Levels
+                  </button>
+                </div>
+              </div>
+              
+              {/* Potions */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">POTIONS ({game?.potionInventory?.length || 0})</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newPotions = [
+                          { id: `hp_cheat_${Date.now()}_1`, name: 'Health Potion', type: 'health' as const, healAmount: 50, manaAmount: 0, rarity: 'uncommon' as const, description: 'Restores 50 HP' },
+                          { id: `hp_cheat_${Date.now()}_2`, name: 'Health Potion', type: 'health' as const, healAmount: 50, manaAmount: 0, rarity: 'uncommon' as const, description: 'Restores 50 HP' },
+                          { id: `mp_cheat_${Date.now()}_1`, name: 'Mana Potion', type: 'mana' as const, healAmount: 0, manaAmount: 30, rarity: 'uncommon' as const, description: 'Restores 30 MP' },
+                          { id: `mp_cheat_${Date.now()}_2`, name: 'Mana Potion', type: 'mana' as const, healAmount: 0, manaAmount: 30, rarity: 'uncommon' as const, description: 'Restores 30 MP' },
+                          { id: `elixir_cheat_${Date.now()}`, name: 'Elixir', type: 'elixir' as const, healAmount: 50, manaAmount: 25, rarity: 'rare' as const, description: 'Restores 50 HP and 25 MP' },
+                        ];
+                        const newGame = { 
+                          ...game, 
+                          potionInventory: [...game.potionInventory, ...newPotions]
+                        };
+                        setGame(newGame);
+                        saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                        log("+5 Potions added!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/40 rounded transition-colors"
+                    data-testid="cheat-potions"
+                  >
+                    +Potions
+                  </button>
+                </div>
+              </div>
+              
+              {/* Equipment */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">EQUIPMENT</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        const newItem = getRandomEquipmentDrop(game.level);
+                        if (newItem) {
+                          const newGame = { 
+                            ...game, 
+                            equipmentInventory: [...game.equipmentInventory, newItem]
+                          };
+                          setGame(newGame);
+                          saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                          log(`Found ${newItem.name}!`);
+                        } else {
+                          log("No item dropped, try again!");
+                        }
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded transition-colors"
+                    data-testid="cheat-random-equip"
+                  >
+                    Random Item
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (game) {
+                        // Force drop 3 items
+                        const items: Equipment[] = [];
+                        for (let i = 0; i < 3; i++) {
+                          const item = getRandomEquipmentDrop(game.level + 5);
+                          if (item) items.push(item);
+                        }
+                        if (items.length > 0) {
+                          const newGame = { 
+                            ...game, 
+                            equipmentInventory: [...game.equipmentInventory, ...items]
+                          };
+                          setGame(newGame);
+                          saveMutation.mutate({ data: newGame as any, lastSavedAt: new Date().toISOString() });
+                          log(`Found ${items.length} items!`);
+                        }
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/40 rounded transition-colors"
+                    data-testid="cheat-legendary"
+                  >
+                    +3 Items
+                  </button>
+                </div>
+              </div>
+              
+              {/* Combat */}
+              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                <div className="text-xs text-red-400 mb-2">COMBAT</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (game && !combatState.active) {
+                        const monsters: Monster[] = [];
+                        const count = 1 + Math.floor(Math.random() * 4);
+                        for (let i = 0; i < count; i++) {
+                          monsters.push(getRandomMonster(game.level));
+                        }
+                        setCombatState({
+                          active: true,
+                          monsters,
+                          targetIndex: 0,
+                          turn: 0,
+                          currentCharIndex: 0,
+                          turnOrder: [],
+                          turnOrderPosition: 0,
+                          defending: false
+                        });
+                        setIsCombatFullscreen(true);
+                        log("Combat started!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded transition-colors"
+                    data-testid="cheat-start-combat"
+                  >
+                    Start Battle
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (combatState.active) {
+                        const deadMonsters = combatState.monsters.map(m => ({ ...m, hp: 0 }));
+                        setCombatState({ ...combatState, monsters: deadMonsters });
+                        log("All monsters killed!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded transition-colors"
+                    data-testid="cheat-kill-monsters"
+                  >
+                    Kill All Monsters
+                  </button>
+                </div>
+              </div>
+              
+              {/* Danger Zone */}
+              <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/30">
+                <div className="text-xs text-red-500 mb-2">DANGER ZONE</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (confirm("Reset all progress? This cannot be undone!")) {
+                        const freshGame = createInitialState();
+                        setGame(freshGame);
+                        saveMutation.mutate({ data: freshGame as any, lastSavedAt: new Date().toISOString() });
+                        log("Game reset!");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-red-600/30 text-red-400 hover:bg-red-600/50 rounded transition-colors"
+                    data-testid="cheat-reset"
+                  >
+                    Reset Game
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
