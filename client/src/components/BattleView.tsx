@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronRight, Swords, Shield, DoorOpen, Zap, Skull, Wand2, Hand } from "lucide-react";
 import type { GameData, Monster, Player, Ability } from "@/lib/game-engine";
+import stoneDungeonBg from "@assets/Gemini_Generated_Image_haabe3haabe3haab_1770316826611.png";
 
 interface EffectiveStats {
   attack: number;
@@ -104,10 +105,11 @@ interface FloorTheme {
   atmosphere: 'torches' | 'drips' | 'crystal_glow' | 'lava_embers' | 'runes' | 'spores' | 'snowfall' | 'souls' | 'dust' | 'void_rifts';
   ambientColor: string;
   fogColor: string;
+  backgroundImage?: string;
 }
 
 const FLOOR_THEMES: FloorTheme[] = [
-  // Level 1: Stone Dungeon - classic dungeon entrance
+  // Level 1: Stone Dungeon - classic dungeon entrance (uses custom background image)
   { 
     name: 'Stone Dungeon',
     bg: 'from-stone-900 via-stone-800 to-gray-900',
@@ -115,8 +117,9 @@ const FLOOR_THEMES: FloorTheme[] = [
     groundTexture: 'cobblestone',
     silhouette: 'stone_bricks',
     atmosphere: 'torches',
-    ambientColor: 'rgba(255, 180, 100, 0.1)',
-    fogColor: 'rgba(80, 70, 60, 0.3)'
+    ambientColor: 'rgba(255, 180, 100, 0.08)',
+    fogColor: 'rgba(80, 70, 60, 0.2)',
+    backgroundImage: stoneDungeonBg
   },
   // Level 2: Mossy Cavern - overgrown tunnels
   {
@@ -692,47 +695,62 @@ export function BattleView({
 
   return (
     <div className="relative w-full h-full overflow-hidden" data-testid="battle-view">
-      {/* Sky/Background gradient */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${theme.bg}`} />
-      
-      {/* Ambient color overlay */}
-      <div className="absolute inset-0" style={{ background: theme.ambientColor }} />
-      
-      {/* Themed wall/ceiling silhouette */}
-      <div className="absolute bottom-[40%] left-0 right-0 h-40">
-        <ThemeSilhouette type={theme.silhouette} />
-      </div>
-      
-      {/* Fog/mist layer */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-60"
-        style={{ 
-          background: `linear-gradient(180deg, transparent 0%, ${theme.fogColor} 50%, transparent 100%)`
-        }}
-      />
-      
-      {/* Ground area with theme-specific texture */}
-      <div className={`absolute bottom-0 left-0 right-0 h-[45%] ${theme.ground}`}>
-        {/* Theme-specific ground texture */}
-        <GroundTexture type={theme.groundTexture} />
-        
-        {/* Depth perspective lines */}
-        <div className="absolute inset-0 opacity-15">
-          {[...Array(6)].map((_, i) => (
-            <div 
-              key={i} 
-              className="absolute left-0 right-0 h-px bg-black/40"
-              style={{ 
-                top: `${(i + 1) * 16}%`,
-                transform: `perspective(200px) rotateX(${i * 2}deg)`
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      
-      {/* Atmospheric effects layer */}
-      <AtmosphereEffects type={theme.atmosphere} ambientColor={theme.ambientColor} />
+      {/* Background - either custom image or procedural theme */}
+      {theme.backgroundImage ? (
+        <>
+          {/* Custom background image */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${theme.backgroundImage})` }}
+          />
+          {/* Subtle ambient overlay for consistency */}
+          <div className="absolute inset-0" style={{ background: theme.ambientColor }} />
+        </>
+      ) : (
+        <>
+          {/* Sky/Background gradient */}
+          <div className={`absolute inset-0 bg-gradient-to-b ${theme.bg}`} />
+          
+          {/* Ambient color overlay */}
+          <div className="absolute inset-0" style={{ background: theme.ambientColor }} />
+          
+          {/* Themed wall/ceiling silhouette */}
+          <div className="absolute bottom-[40%] left-0 right-0 h-40">
+            <ThemeSilhouette type={theme.silhouette} />
+          </div>
+          
+          {/* Fog/mist layer */}
+          <div 
+            className="absolute inset-0 pointer-events-none opacity-60"
+            style={{ 
+              background: `linear-gradient(180deg, transparent 0%, ${theme.fogColor} 50%, transparent 100%)`
+            }}
+          />
+          
+          {/* Ground area with theme-specific texture */}
+          <div className={`absolute bottom-0 left-0 right-0 h-[45%] ${theme.ground}`}>
+            {/* Theme-specific ground texture */}
+            <GroundTexture type={theme.groundTexture} />
+            
+            {/* Depth perspective lines */}
+            <div className="absolute inset-0 opacity-15">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className="absolute left-0 right-0 h-px bg-black/40"
+                  style={{ 
+                    top: `${(i + 1) * 16}%`,
+                    transform: `perspective(200px) rotateX(${i * 2}deg)`
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {/* Atmospheric effects layer */}
+          <AtmosphereEffects type={theme.atmosphere} ambientColor={theme.ambientColor} />
+        </>
+      )}
       
       {/* Floor name indicator (top-left) */}
       <div className="absolute top-3 left-3 z-30 bg-black/50 px-3 py-1 rounded-lg border border-white/10" data-testid="panel-floor-theme">
