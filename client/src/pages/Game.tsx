@@ -1658,7 +1658,7 @@ export default function Game() {
         </>
       )}
       
-      <div className={`${isCombatFullscreen ? 'w-full h-full p-0 flex' : 'max-w-6xl w-full pt-16 pb-4 px-2'} relative z-10 transition-all duration-300`}>
+      <div className="w-full h-full p-0 flex relative z-10 transition-all duration-300">
         
         {/* Monster Health Bars - Fixed at top center during combat fullscreen */}
         {isCombatFullscreen && combatState.active && combatState.monsters.length > 0 && (
@@ -1713,11 +1713,11 @@ export default function Game() {
         )}
 
         {/* CENTER - Main game area (monsters during combat) */}
-        <div className={`${isCombatFullscreen ? 'flex-1 h-full' : 'grid grid-cols-1 lg:grid-cols-12 gap-3 w-full'}`}>
+        <div className="flex-1 h-full">
         
-        {/* LEFT COLUMN: Commands & Party Stats stacked - hide during combat fullscreen */}
+        {/* LEFT COLUMN: Commands & Party Stats stacked - fixed overlay position */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-3 space-y-2 order-2 lg:order-1 overflow-y-auto max-h-[calc(100vh-6rem)] pr-1 pt-20" style={{ scrollbarWidth: 'thin' }}>
+        <div className="fixed left-2 top-16 bottom-4 w-64 z-50 space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="COMMANDS">
             <div className="grid grid-cols-2 gap-2">
               <RetroButton onClick={handleSave} disabled={saveMutation.isPending}>
@@ -2008,9 +2008,9 @@ export default function Game() {
         )}
 
         {/* CENTER COLUMN: Viewport */}
-        <div className={`${isCombatFullscreen ? 'w-full h-full' : 'lg:col-span-7'} order-1 lg:order-2`}>
-          <RetroCard className={`${isCombatFullscreen ? 'h-full rounded-none border-0 bg-transparent' : 'p-1'}`}>
-            <div className="relative w-full bg-black overflow-hidden rounded-lg" style={{ aspectRatio: '16/10', maxHeight: '70vh' }}>
+        <div className="w-full h-full order-1 lg:order-2">
+          <RetroCard className="h-full rounded-none border-0 bg-transparent p-0">
+            <div className="relative w-full h-full bg-black overflow-hidden">
               {/* Always show dungeon view as background */}
               {/* Base dungeon rendering (hidden only when post-processing is active AND canvas is ready) */}
               <DungeonView 
@@ -2255,9 +2255,9 @@ export default function Game() {
             </RetroCard>
         </div>
 
-        {/* RIGHT COLUMN: Message Log - hide during combat fullscreen */}
+        {/* RIGHT COLUMN: Message Log - fixed overlay position */}
         {!isCombatFullscreen && (
-        <div className="lg:col-span-2 order-3 overflow-y-auto max-h-[calc(100vh-6rem)] pl-1 pt-20 flex flex-col gap-2" style={{ scrollbarWidth: 'thin' }}>
+        <div className="fixed right-2 top-16 bottom-4 w-64 z-50 overflow-y-auto pl-1 flex flex-col gap-2" style={{ scrollbarWidth: 'thin' }}>
           <RetroCard title="LOG" className="flex-1">
             <div className="space-y-1 text-xs" data-testid="panel-message-log">
               {logs.map((msg, i) => (
