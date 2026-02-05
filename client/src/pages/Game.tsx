@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGameState, useSaveGame } from "@/hooks/use-game";
-import { DungeonViewWebGL } from "@/components/DungeonViewWebGL";
+import { DungeonView } from "@/components/DungeonView";
+import { WebGLPostProcess } from "@/components/WebGLPostProcess";
 import dungeonWallBg from "@assets/Gemini_Generated_Image_8w52n78w52n78w52_1769494784513.png";
 import { TransparentMonster, MonsterAnimationState } from "@/components/TransparentMonster";
 import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
@@ -120,6 +121,8 @@ export default function Game() {
   const [helpFilter, setHelpFilter] = useState<string>('all');
   const [helpTab, setHelpTab] = useState<'items' | 'sets'>('items');
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('high');
+  const [postProcessing, setPostProcessing] = useState(true);  // WebGL post-processing effects
+  const [dungeonCanvasRef, setDungeonCanvasRef] = useState<HTMLCanvasElement | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showCheatMenu, setShowCheatMenu] = useState(false);
   const [isCombatFullscreen, setIsCombatFullscreen] = useState(false);
@@ -2082,14 +2085,38 @@ export default function Game() {
           <RetroCard className={`${isCombatFullscreen ? 'h-full rounded-none border-0 bg-transparent' : 'p-1'}`}>
             <div className="relative aspect-[4/3] w-full bg-black overflow-hidden rounded-lg">
               {/* Always show dungeon view as background */}
-              <DungeonViewWebGL 
+              {/* Base dungeon rendering (hidden only when post-processing is active AND canvas is ready) */}
+              <DungeonView 
                 gameData={game} 
-                className="w-full h-full" 
+                className={`w-full h-full ${postProcessing && dungeonCanvasRef ? 'invisible' : ''}`}
                 renderWidth={RESOLUTION_PRESETS[graphicsQuality].width}
                 renderHeight={RESOLUTION_PRESETS[graphicsQuality].height}
                 visualX={visualPos.x}
                 visualY={visualPos.y}
+                onCanvasRef={setDungeonCanvasRef}
               />
+              
+              {/* WebGL post-processing overlay with effects */}
+              {postProcessing && dungeonCanvasRef && (
+                <WebGLPostProcess
+                  sourceCanvas={dungeonCanvasRef}
+                  width={RESOLUTION_PRESETS[graphicsQuality].width}
+                  height={RESOLUTION_PRESETS[graphicsQuality].height}
+                  className="absolute inset-0 w-full h-full rounded-lg"
+                  effects={{
+                    scanlines: true,
+                    bloom: true,
+                    vignette: true,
+                    colorGrading: true,
+                    crt: false,
+                    chromatic: true
+                  }}
+                  onInitFailed={() => {
+                    console.warn("WebGL post-processing failed to initialize, falling back to canvas");
+                    setPostProcessing(false);
+                  }}
+                />
+              )}
               
               {/* Mini Map in top left (toggle with M key) - hide during combat fullscreen */}
               {showMiniMap && !isCombatFullscreen && (() => {
@@ -2357,7 +2384,7 @@ export default function Game() {
               </button>
               
               {showSettings && (
-                <div className="absolute bottom-full right-0 mb-2 bg-slate-900/95 backdrop-blur-sm border border-amber-600/30 rounded-lg p-3 min-w-[160px] shadow-xl z-50">
+                <div className="absolute bottom-full right-0 mb-2 bg-slate-900/95 backdrop-blur-sm border border-amber-600/30 rounded-lg p-3 min-w-[180px] shadow-xl z-50">
                   <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">QUALITY</div>
                   {(['high', 'medium', 'low'] as GraphicsQuality[]).map((quality) => (
                     <button
@@ -2377,6 +2404,22 @@ export default function Game() {
                       {graphicsQuality === quality && <span className="ml-2 text-amber-400">✓</span>}
                     </button>
                   ))}
+                  
+                  <div className="border-t border-amber-600/20 my-2 pt-2">
+                    <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">EFFECTS</div>
+                    <button
+                      onClick={() => setPostProcessing(!postProcessing)}
+                      className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                        postProcessing 
+                          ? 'bg-cyan-600/50 text-cyan-200' 
+                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                      data-testid="button-toggle-postprocessing"
+                    >
+                      WebGL Effects
+                      {postProcessing && <span className="ml-2 text-cyan-400">✓</span>}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

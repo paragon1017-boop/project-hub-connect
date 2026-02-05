@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { GameData, NORTH, EAST, SOUTH, WEST } from "@/lib/game-engine";
 
 interface DungeonViewProps {
@@ -8,6 +8,7 @@ interface DungeonViewProps {
   renderHeight?: number;
   visualX?: number;  // Optional interpolated X position for smooth movement
   visualY?: number;  // Optional interpolated Y position for smooth movement
+  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void;  // Callback to get canvas reference for post-processing
 }
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
@@ -20,9 +21,20 @@ function getTexturesForLevel(level: number): { wall: string; floor: string } {
   };
 }
 
-export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY }: DungeonViewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY, onCanvasRef }: DungeonViewProps) {
+  const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, door: null });
+  
+  // Callback ref to notify parent when canvas is mounted, and store locally
+  const setCanvasRef = useCallback((canvas: HTMLCanvasElement | null) => {
+    internalCanvasRef.current = canvas;
+    if (onCanvasRef) {
+      onCanvasRef(canvas);
+    }
+  }, [onCanvasRef]);
+  
+  // Alias for internal usage
+  const canvasRef = internalCanvasRef;
   const currentLevelRef = useRef<number | null>(null);
   
   // Dirty tracking to skip redundant redraws
@@ -1587,7 +1599,7 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
   return (
     <div className={className}>
       <canvas 
-        ref={canvasRef} 
+        ref={setCanvasRef} 
         width={renderWidth} 
         height={renderHeight} 
         className="w-full h-full image-pixelated rounded-lg border-4 border-muted shadow-inner bg-black"
