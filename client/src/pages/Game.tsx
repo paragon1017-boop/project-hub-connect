@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGameState, useSaveGame } from "@/hooks/use-game";
 import { DungeonView } from "@/components/DungeonView";
 import { WebGLPostProcess } from "@/components/WebGLPostProcess";
+import { BattleView } from "@/components/BattleView";
 import dungeonWallBg from "@assets/Gemini_Generated_Image_8w52n78w52n78w52_1769494784513.png";
 import { TransparentMonster, MonsterAnimationState } from "@/components/TransparentMonster";
 import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
@@ -2180,45 +2181,40 @@ export default function Game() {
                 );
               })()}
               
-              {/* Monster overlay during combat */}
-              {combatState.active && combatState.monsters.length > 0 && (
+              {/* Dragon Quest-style Battle View - fullscreen combat */}
+              {combatState.active && combatState.monsters.length > 0 && isCombatFullscreen && (
+                <div className="absolute inset-0 z-50">
+                  <BattleView
+                    game={game}
+                    combatState={combatState}
+                    onTargetSelect={(idx) => setCombatState(prev => ({ ...prev, targetIndex: idx }))}
+                    onAbilityUse={useAbility}
+                    onFlee={handleRun}
+                    getAbilitiesForJob={getAbilitiesForJob}
+                    getEffectiveStats={getEffectiveStats}
+                    monsterAnimations={monsterAnimations}
+                    logs={logs}
+                  />
+                </div>
+              )}
+              
+              {/* Classic overlay combat for non-fullscreen mode */}
+              {combatState.active && combatState.monsters.length > 0 && !isCombatFullscreen && (
                 <>
                   {/* Atmospheric overlay for combat - radial vignette that darkens edges */}
                   <div 
                     className="absolute inset-0 z-[5] pointer-events-none animate-in fade-in duration-500"
                     style={{
-                      background: isCombatFullscreen 
-                        ? 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(100,0,0,0.2) 0%, rgba(50,0,0,0.5) 30%, rgba(0,0,0,0.9) 80%)'
-                        : 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
+                      background: 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
                     }}
                   />
                   
-                  {/* Pulsing combat border effect - fullscreen only */}
-                  {isCombatFullscreen && (
-                    <div className="absolute inset-0 z-[6] pointer-events-none border-[4px] border-red-500/30 animate-pulse" />
-                  )}
-                  
-                  
-                  {/* Monster display - single row for up to 5 monsters */}
-                  <div className={`absolute inset-0 z-10 flex items-center justify-center pointer-events-none ${
-                    isCombatFullscreen ? 'pt-6' : 'pb-10'
-                  }`}>
+                  {/* Monster display - single row for up to 3 monsters */}
+                  <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none pb-10">
                     <div className="relative w-full flex flex-col justify-center items-center animate-in fade-in zoom-in duration-300">
-                      {/* All monsters in single row (max 3) */}
-                      <div className="flex items-end justify-center z-20" style={{ 
-                        gap: isCombatFullscreen 
-                          ? (combatState.monsters.length === 3 ? '-60px' : combatState.monsters.length === 2 ? '-30px' : '0px')
-                          : '4px' 
-                      }}>
+                      <div className="flex items-end justify-center z-20" style={{ gap: '4px' }}>
                         {combatState.monsters.slice(0, 3).map((monster, idx) => {
                           const getMonsterSize = () => {
-                            if (isCombatFullscreen) {
-                              // Large sizes for 1-3 monsters
-                              if (combatState.monsters.length === 1) return 'w-[400px] h-[400px] md:w-[500px] md:h-[500px] lg:w-[580px] lg:h-[580px]';
-                              if (combatState.monsters.length === 2) return 'w-[320px] h-[320px] md:w-[420px] md:h-[420px] lg:w-[500px] lg:h-[500px]';
-                              // 3 monsters
-                              return 'w-[280px] h-[280px] md:w-[360px] md:h-[360px] lg:w-[420px] lg:h-[420px]';
-                            }
                             if (combatState.monsters.length === 1) return 'w-56 h-56';
                             if (combatState.monsters.length === 2) return 'w-48 h-48';
                             return 'w-40 h-40';
@@ -2233,8 +2229,8 @@ export default function Game() {
                               style={{ pointerEvents: 'auto', filter: monster.hp <= 0 ? 'brightness(0.6)' : 'none' }}
                             >
                               {idx === combatState.targetIndex && monster.hp > 0 && (
-                                <div className={`absolute ${isCombatFullscreen ? '-top-14' : '-top-6'} left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce z-40`}>
-                                  <ChevronDown className={isCombatFullscreen ? 'w-10 h-10' : 'w-6 h-6'} />
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce z-40">
+                                  <ChevronDown className="w-6 h-6" />
                                 </div>
                               )}
                               {monster.image ? (
@@ -2248,22 +2244,16 @@ export default function Game() {
                                   />
                                   <div 
                                     className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
-                                      isCombatFullscreen
-                                        ? combatState.monsters.length === 1 ? 'w-[360px] h-14' :
-                                          combatState.monsters.length === 2 ? 'w-[300px] h-12' : 'w-[260px] h-10'
-                                        : combatState.monsters.length === 1 ? 'w-44 h-6' :
-                                          combatState.monsters.length === 2 ? 'w-36 h-5' : 'w-32 h-5'
+                                      combatState.monsters.length === 1 ? 'w-44 h-6' :
+                                        combatState.monsters.length === 2 ? 'w-36 h-5' : 'w-32 h-5'
                                     }`}
                                     style={{ transform: 'translateX(-50%) translateY(8px)' }}
                                   />
                                 </>
                               ) : (
                                 <Skull className={`text-red-500 drop-shadow-lg ${
-                                  isCombatFullscreen 
-                                    ? combatState.monsters.length === 1 ? 'w-[120px] h-[120px]' :
-                                      combatState.monsters.length === 2 ? 'w-[100px] h-[100px]' : 'w-[80px] h-[80px]'
-                                    : combatState.monsters.length === 1 ? 'w-44 h-44' :
-                                      combatState.monsters.length === 2 ? 'w-36 h-36' : 'w-32 h-32'
+                                  combatState.monsters.length === 1 ? 'w-44 h-44' :
+                                    combatState.monsters.length === 2 ? 'w-36 h-36' : 'w-32 h-32'
                                 }`} />
                               )}
                             </div>
@@ -2273,68 +2263,65 @@ export default function Game() {
                     </div>
                   </div>
                   
-                  
-                  {/* Combat UI overlay at bottom - only show in non-fullscreen mode */}
-                  {!isCombatFullscreen && (
-                    <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2">
-                      <div className="space-y-2">
-                        {/* All Monsters HP bars */}
-                        <div className="flex flex-wrap gap-1">
-                          {combatState.monsters.map((monster, idx) => (
-                            <div 
-                              key={monster.id} 
-                              className={`flex-1 min-w-[100px] p-1 rounded border cursor-pointer transition-all ${
-                                idx === combatState.targetIndex ? 'border-yellow-400 bg-yellow-400/10' : 'border-primary/30 bg-black/40'
-                              } ${monster.hp <= 0 ? 'opacity-50' : ''}`}
-                              onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                            >
-                              <h2 className="font-pixel text-destructive text-[10px] truncate">{monster.name}</h2>
-                              <div className="h-1.5 bg-black/50 rounded-full overflow-hidden mt-0.5">
-                                <div 
-                                  className="h-full transition-all"
-                                  style={{ 
-                                    width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
-                                    backgroundColor: monster.color || '#ef4444'
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {/* Current Character Turn */}
-                        {game.party[combatState.currentCharIndex] && game.party[combatState.currentCharIndex].hp > 0 && (
-                          <div className="bg-black/60 p-1.5 rounded border border-primary/30">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-pixel text-[10px] text-primary">
-                                {game.party[combatState.currentCharIndex].name}'s Turn
-                              </span>
-                              <span className="font-retro text-[10px] text-blue-400">
-                                MP: {game.party[combatState.currentCharIndex].mp}/{getEffectiveStats(game.party[combatState.currentCharIndex]).maxMp}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {getAbilitiesForJob(game.party[combatState.currentCharIndex].job).map((ability) => (
-                                <RetroButton 
-                                  key={ability.id}
-                                  onClick={() => useAbility(ability, combatState.currentCharIndex)} 
-                                  className="px-2 py-0.5 text-[10px]"
-                                  disabled={ability.mpCost > game.party[combatState.currentCharIndex].mp}
-                                  data-testid={`button-${ability.id}`}
-                                >
-                                  {ability.name}
-                                  {ability.mpCost > 0 && <span className="ml-1 text-blue-300">({ability.mpCost})</span>}
-                                </RetroButton>
-                              ))}
-                              <RetroButton onClick={handleRun} variant="ghost" className="px-2 py-0.5 text-[10px]" data-testid="button-run">
-                                RUN
-                              </RetroButton>
+                  {/* Combat UI overlay at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2">
+                    <div className="space-y-2">
+                      {/* All Monsters HP bars */}
+                      <div className="flex flex-wrap gap-1">
+                        {combatState.monsters.map((monster, idx) => (
+                          <div 
+                            key={monster.id} 
+                            className={`flex-1 min-w-[100px] p-1 rounded border cursor-pointer transition-all ${
+                              idx === combatState.targetIndex ? 'border-yellow-400 bg-yellow-400/10' : 'border-primary/30 bg-black/40'
+                            } ${monster.hp <= 0 ? 'opacity-50' : ''}`}
+                            onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
+                          >
+                            <h2 className="font-pixel text-destructive text-[10px] truncate">{monster.name}</h2>
+                            <div className="h-1.5 bg-black/50 rounded-full overflow-hidden mt-0.5">
+                              <div 
+                                className="h-full transition-all"
+                                style={{ 
+                                  width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
+                                  backgroundColor: monster.color || '#ef4444'
+                                }}
+                              />
                             </div>
                           </div>
-                        )}
+                        ))}
                       </div>
+                      
+                      {/* Current Character Turn */}
+                      {game.party[combatState.currentCharIndex] && game.party[combatState.currentCharIndex].hp > 0 && (
+                        <div className="bg-black/60 p-1.5 rounded border border-primary/30">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-pixel text-[10px] text-primary">
+                              {game.party[combatState.currentCharIndex].name}'s Turn
+                            </span>
+                            <span className="font-retro text-[10px] text-blue-400">
+                              MP: {game.party[combatState.currentCharIndex].mp}/{getEffectiveStats(game.party[combatState.currentCharIndex]).maxMp}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {getAbilitiesForJob(game.party[combatState.currentCharIndex].job).map((ability) => (
+                              <RetroButton 
+                                key={ability.id}
+                                onClick={() => useAbility(ability, combatState.currentCharIndex)} 
+                                className="px-2 py-0.5 text-[10px]"
+                                disabled={ability.mpCost > game.party[combatState.currentCharIndex].mp}
+                                data-testid={`button-${ability.id}`}
+                              >
+                                {ability.name}
+                                {ability.mpCost > 0 && <span className="ml-1 text-blue-300">({ability.mpCost})</span>}
+                              </RetroButton>
+                            ))}
+                            <RetroButton onClick={handleRun} variant="ghost" className="px-2 py-0.5 text-[10px]" data-testid="button-run">
+                              RUN
+                            </RetroButton>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </>
               )}
             </div>
