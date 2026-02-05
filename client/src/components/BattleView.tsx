@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronRight, Swords, Shield, DoorOpen, Zap, Skull, Wand2, Hand } from "lucide-react";
 import type { GameData, Monster, Player, Ability } from "@/lib/game-engine";
 
@@ -73,6 +73,160 @@ function TransparentMonster({
   animationState?: 'idle' | 'attacking' | 'hit';
   isFlying?: boolean;
 }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [processingState, setProcessingState] = useState<'loading' | 'processed' | 'fallback'>('loading');
+
+  useEffect(() => {
+    setProcessingState('loading');
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      setProcessingState('fallback');
+      return;
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      setProcessingState('fallback');
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Sample corner pixels only (safer than all edges - less likely to hit sprite content)
+        const cornerPixels: number[][] = [];
+        const cornerSize = 8;
+        
+        // Top-left corner
+        for (let y = 0; y < cornerSize; y++) {
+          for (let x = 0; x < cornerSize; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            cornerPixels.push([data[idx], data[idx + 1], data[idx + 2]]);
+          }
+        }
+        // Top-right corner
+        for (let y = 0; y < cornerSize; y++) {
+          for (let x = canvas.width - cornerSize; x < canvas.width; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            cornerPixels.push([data[idx], data[idx + 1], data[idx + 2]]);
+          }
+        }
+        // Bottom-left corner
+        for (let y = canvas.height - cornerSize; y < canvas.height; y++) {
+          for (let x = 0; x < cornerSize; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            cornerPixels.push([data[idx], data[idx + 1], data[idx + 2]]);
+          }
+        }
+        // Bottom-right corner
+        for (let y = canvas.height - cornerSize; y < canvas.height; y++) {
+          for (let x = canvas.width - cornerSize; x < canvas.width; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            cornerPixels.push([data[idx], data[idx + 1], data[idx + 2]]);
+          }
+        }
+
+        // Find the most common corner color (likely the background)
+        const colorCounts: Record<string, { count: number; r: number; g: number; b: number }> = {};
+        cornerPixels.forEach(([r, g, b]) => {
+          // Quantize to reduce variations
+          const qr = Math.round(r / 20) * 20;
+          const qg = Math.round(g / 20) * 20;
+          const qb = Math.round(b / 20) * 20;
+          const key = `${qr},${qg},${qb}`;
+          if (!colorCounts[key]) {
+            colorCounts[key] = { count: 0, r: qr, g: qg, b: qb };
+          }
+          colorCounts[key].count++;
+        });
+
+        // Get the most common color - must be dominant (>60% of corners)
+        let bgR = 0, bgG = 0, bgB = 0;
+        let maxCount = 0;
+        let foundBg = false;
+        const totalPixels = cornerPixels.length;
+        for (const entry of Object.values(colorCounts)) {
+          if (entry.count > maxCount && entry.count > totalPixels * 0.6) {
+            maxCount = entry.count;
+            bgR = entry.r;
+            bgG = entry.g;
+            bgB = entry.b;
+            foundBg = true;
+          }
+        }
+
+        // Only process if we found a clear dominant background color
+        if (foundBg) {
+          // Tolerance for background matching
+          const tolerance = 40;
+
+          // Process pixels - remove background
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            // Calculate color distance from background
+            const distance = Math.sqrt(
+              Math.pow(r - bgR, 2) +
+              Math.pow(g - bgG, 2) +
+              Math.pow(b - bgB, 2)
+            );
+
+            if (distance < tolerance) {
+              // Fade based on distance - closer to bg color = more transparent
+              const alpha = Math.min(255, Math.max(0, (distance / tolerance) * 255));
+              data[i + 3] = Math.floor(alpha);
+            }
+          }
+
+          // Apply soft edge fade for natural blending
+          const fadeEdge = 6;
+          for (let y = 0; y < canvas.height; y++) {
+            for (let x = 0; x < canvas.width; x++) {
+              const idx = (y * canvas.width + x) * 4;
+              const distFromLeft = x;
+              const distFromRight = canvas.width - 1 - x;
+              const distFromTop = y;
+              const distFromBottom = canvas.height - 1 - y;
+              const minDist = Math.min(distFromLeft, distFromRight, distFromTop, distFromBottom);
+              
+              if (minDist < fadeEdge) {
+                const edgeFade = minDist / fadeEdge;
+                data[idx + 3] = Math.floor(data[idx + 3] * edgeFade);
+              }
+            }
+          }
+
+          ctx.putImageData(imageData, 0, 0);
+          setProcessingState('processed');
+        } else {
+          // No dominant background found - use fallback image
+          setProcessingState('fallback');
+        }
+      } catch (e) {
+        // Canvas tainted by CORS or other error - fallback to original image
+        console.warn('Could not process monster image, using fallback:', e);
+        setProcessingState('fallback');
+      }
+    };
+
+    img.onerror = () => {
+      setProcessingState('fallback');
+    };
+
+    img.src = src;
+  }, [src]);
+
   const getAnimationStyle = () => {
     switch (animationState) {
       case 'attacking':
@@ -89,27 +243,29 @@ function TransparentMonster({
       className={`relative transition-all duration-200 ${isFlying ? 'animate-float' : ''}`}
       style={{
         ...getAnimationStyle(),
-        isolation: 'isolate'
+        filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.8))'
       }}
     >
-      {/* Background removal layer - darkens light backgrounds while preserving monster colors */}
-      <div 
-        className="absolute inset-0 rounded-lg"
+      {/* Processed canvas - shown when background removal succeeds */}
+      <canvas 
+        ref={canvasRef}
+        className={`${className} object-contain ${processingState === 'processed' ? 'opacity-100' : 'opacity-0 absolute'}`}
         style={{ 
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)',
-          mixBlendMode: 'multiply',
-          pointerEvents: 'none'
+          transition: 'opacity 0.2s ease-in'
         }}
       />
-      <img 
-        src={src} 
-        alt={alt} 
-        className={`${className} object-contain relative`}
-        style={{ 
-          filter: 'drop-shadow(0 6px 25px rgba(0,0,0,0.9)) contrast(1.05) saturate(1.1)',
-          imageRendering: 'auto'
-        }}
-      />
+      {/* Fallback image - shown when canvas processing fails or during loading */}
+      {processingState !== 'processed' && (
+        <img 
+          src={src} 
+          alt={alt} 
+          className={`${className} object-contain ${processingState === 'fallback' ? 'opacity-100' : 'opacity-0'}`}
+          style={{ 
+            filter: 'drop-shadow(0 6px 25px rgba(0,0,0,0.9))',
+            transition: 'opacity 0.2s ease-in'
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -856,41 +1012,6 @@ export function BattleView({
             );
           })}
         </div>
-      </div>
-      
-      {/* Party member sprite (right side) - showing current active character */}
-      <div className="absolute right-[10%] bottom-[48%] flex flex-col items-center">
-        {currentChar && (
-          <div className="relative">
-            {/* Character sprite placeholder - would be replaced with actual sprites */}
-            <div 
-              className="w-32 h-48 md:w-40 md:h-56 flex items-end justify-center relative"
-              style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
-            >
-              {/* Simple character representation */}
-              <div className="relative w-full h-full flex flex-col items-center justify-end pb-4">
-                {/* Character body silhouette */}
-                <div 
-                  className="w-20 h-32 md:w-24 md:h-40 rounded-t-3xl border-4 flex items-center justify-center"
-                  style={{ 
-                    backgroundColor: JOB_COLORS[currentChar.job.toLowerCase()] + '40',
-                    borderColor: JOB_COLORS[currentChar.job.toLowerCase()]
-                  }}
-                >
-                  <JobIcon job={currentChar.job} className="w-12 h-12 md:w-16 md:h-16 text-white" />
-                </div>
-                
-                {/* Weapon/stance indicator */}
-                <div className="absolute -right-4 top-1/3 transform -rotate-45">
-                  <JobIcon job={currentChar.job} className="w-8 h-8 text-white/60" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Character shadow */}
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-20 h-3 bg-black/40 rounded-[50%] blur-sm" />
-          </div>
-        )}
       </div>
       
       {/* Party HP/MP display (right side panel) */}
