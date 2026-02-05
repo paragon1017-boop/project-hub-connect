@@ -122,8 +122,25 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
 
     // Simple Raycaster Settings
     const map = gameData.map;
-    const posX = currentX + 0.5;
-    const posY = currentY + 0.5;
+    
+    // Ensure camera position is clamped to valid floor tiles during interpolation
+    // This prevents seeing through walls when visual position is between tiles
+    const safeX = Math.max(0.1, Math.min(map[0].length - 1.1, currentX));
+    const safeY = Math.max(0.1, Math.min(map.length - 1.1, currentY));
+    
+    // Check if current interpolated position would put camera inside a wall
+    // If so, use the floor position of the player's actual tile
+    const floorX = Math.floor(safeX);
+    const floorY = Math.floor(safeY);
+    const fracX = safeX - floorX;
+    const fracY = safeY - floorY;
+    
+    // Clamp fractional part to avoid being too close to tile edges (0.1 to 0.9)
+    const clampedFracX = Math.max(0.1, Math.min(0.9, fracX));
+    const clampedFracY = Math.max(0.1, Math.min(0.9, fracY));
+    
+    const posX = floorX + clampedFracX + 0.5;
+    const posY = floorY + clampedFracY + 0.5;
     
     // Direction vectors based on cardinal direction (0=N, 1=E, 2=S, 3=W)
     let dirX = 0, dirY = 0, planeX = 0, planeY = 0;
