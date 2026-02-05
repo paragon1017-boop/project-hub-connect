@@ -167,8 +167,8 @@ function TransparentMonster({
 
         // Only process if we found a clear dominant background color
         if (foundBg) {
-          // Hard clip tolerance - pixels within this distance are fully removed
-          const tolerance = 60;
+          // Hard clip tolerance - lower value = more conservative, only removes exact background matches
+          const tolerance = 35;
 
           // Process pixels - hard clip background (no fading)
           for (let i = 0; i < data.length; i += 4) {
