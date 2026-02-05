@@ -12,7 +12,7 @@ interface DungeonViewProps {
 }
 
 // Cache buster for texture reloads during development
-const TEXTURE_VERSION = 6;
+const TEXTURE_VERSION = 7;
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
 function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string } {
@@ -113,8 +113,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    // Disable image smoothing to prevent seam artifacts between texture strips
-    ctx.imageSmoothingEnabled = false;
+    // Enable image smoothing for smoother textures
+    ctx.imageSmoothingEnabled = true;
 
     // Clear screen with dark color matching dungeon atmosphere
     ctx.fillStyle = "#1a1a2e";
