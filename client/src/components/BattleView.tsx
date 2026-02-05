@@ -87,14 +87,26 @@ function TransparentMonster({
   return (
     <div 
       className={`relative transition-all duration-200 ${isFlying ? 'animate-float' : ''}`}
-      style={getAnimationStyle()}
+      style={{
+        ...getAnimationStyle(),
+        isolation: 'isolate'
+      }}
     >
+      {/* Background removal layer - darkens light backgrounds while preserving monster colors */}
+      <div 
+        className="absolute inset-0 rounded-lg"
+        style={{ 
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)',
+          mixBlendMode: 'multiply',
+          pointerEvents: 'none'
+        }}
+      />
       <img 
         src={src} 
         alt={alt} 
-        className={`${className} object-contain`}
+        className={`${className} object-contain relative`}
         style={{ 
-          filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.8))',
+          filter: 'drop-shadow(0 6px 25px rgba(0,0,0,0.9)) contrast(1.05) saturate(1.1)',
           imageRendering: 'auto'
         }}
       />
@@ -785,9 +797,9 @@ export function BattleView({
         <span className="text-yellow-400 text-sm font-bold" data-testid="text-battle-speed">Normal</span>
       </div>
       
-      {/* Monster(s) in center-left area */}
-      <div className="absolute left-[15%] top-[20%] bottom-[45%] flex items-center justify-center">
-        <div className="flex items-end gap-4">
+      {/* Monster(s) positioned on the dungeon floor - bottom-[40%] aligns feet with the floor line */}
+      <div className="absolute left-[5%] right-[30%] bottom-[40%] flex items-end justify-center">
+        <div className="flex items-end gap-8">
           {combatState.monsters.slice(0, 3).map((monster, idx) => {
             const monsterSize = combatState.monsters.length === 1 
               ? 'w-64 h-64 md:w-80 md:h-80' 
