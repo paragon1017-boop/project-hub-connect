@@ -12,18 +12,29 @@ interface DungeonViewProps {
 }
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
-function getTexturesForLevel(level: number): { wall: string; floor: string } {
-  // Clamp level to 1-10 range
-  const lvl = Math.max(1, Math.min(10, level));
-  return {
-    wall: `/assets/textures/wall_${lvl}.png`,
-    floor: `/assets/textures/floor_${lvl}.png`
+function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string } {
+  // Map each level to specific themed textures
+  const levelTextures: Record<number, { wall: string; floor: string; ceiling: string }> = {
+    1: { wall: '/assets/textures/wall_stone_dungeon.png', floor: '/assets/textures/floor_stone_dungeon.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    2: { wall: '/assets/textures/wall_crypt.png', floor: '/assets/textures/floor_crypt.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    3: { wall: '/assets/textures/wall_forest.png', floor: '/assets/textures/floor_forest.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    4: { wall: '/assets/textures/wall_ice.png', floor: '/assets/textures/floor_ice.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    5: { wall: '/assets/textures/wall_temple.png', floor: '/assets/textures/floor_temple.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    // Levels 6-10 cycle through themes with variations
+    6: { wall: '/assets/textures/wall_stone_dungeon.png', floor: '/assets/textures/floor_stone_dungeon.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    7: { wall: '/assets/textures/wall_crypt.png', floor: '/assets/textures/floor_crypt.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    8: { wall: '/assets/textures/wall_forest.png', floor: '/assets/textures/floor_forest.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    9: { wall: '/assets/textures/wall_ice.png', floor: '/assets/textures/floor_ice.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
+    10: { wall: '/assets/textures/wall_temple.png', floor: '/assets/textures/floor_temple.png', ceiling: '/assets/textures/ceiling_stone_dungeon.png' },
   };
+  
+  const lvl = Math.max(1, Math.min(10, level));
+  return levelTextures[lvl] || levelTextures[1];
 }
 
 export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY, onCanvasRef }: DungeonViewProps) {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, door: null });
+  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; ceiling: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, ceiling: null, door: null });
   
   // Callback ref to notify parent when canvas is mounted, and store locally
   const setCanvasRef = useCallback((canvas: HTMLCanvasElement | null) => {
@@ -53,11 +64,14 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
       wallImg.src = texturePaths.wall;
       const floorImg = new Image();
       floorImg.src = texturePaths.floor;
+      const ceilingImg = new Image();
+      ceilingImg.src = texturePaths.ceiling;
       const doorImg = new Image();
       doorImg.src = "/assets/textures/door_metal.png";
 
       wallImg.onload = () => { texturesRef.current.wall = wallImg; draw(); };
       floorImg.onload = () => { texturesRef.current.floor = floorImg; draw(); };
+      ceilingImg.onload = () => { texturesRef.current.ceiling = ceilingImg; draw(); };
       doorImg.onload = () => { texturesRef.current.door = doorImg; draw(); };
     }
   }, [gameData.level]);
@@ -116,8 +130,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     const w = canvas.width;
     const h = canvas.height;
 
-    // Draw Ceiling with perspective texture (matching floor but darker with moss)
-    const ceilingTex = texturesRef.current.floor; // Use same texture as floor
+    // Draw Ceiling with perspective texture using dedicated ceiling texture
+    const ceilingTex = texturesRef.current.ceiling || texturesRef.current.floor; // Use ceiling texture, fallback to floor
     if (ceilingTex) {
       const texW = ceilingTex.width;
       const texH = ceilingTex.height;
