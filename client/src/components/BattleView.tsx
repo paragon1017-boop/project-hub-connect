@@ -155,7 +155,8 @@ function TransparentMonster({
         let foundBg = false;
         const totalPixels = cornerPixels.length;
         for (const entry of Object.values(colorCounts)) {
-          if (entry.count > maxCount && entry.count > totalPixels * 0.6) {
+          // Lower threshold to 40% for better detection of backgrounds
+          if (entry.count > maxCount && entry.count > totalPixels * 0.4) {
             maxCount = entry.count;
             bgR = entry.r;
             bgG = entry.g;
@@ -166,8 +167,8 @@ function TransparentMonster({
 
         // Only process if we found a clear dominant background color
         if (foundBg) {
-          // Tolerance for background matching
-          const tolerance = 40;
+          // Higher tolerance for more aggressive background removal
+          const tolerance = 55;
 
           // Process pixels - remove background
           for (let i = 0; i < data.length; i += 4) {
@@ -953,8 +954,8 @@ export function BattleView({
         <span className="text-yellow-400 text-sm font-bold" data-testid="text-battle-speed">Normal</span>
       </div>
       
-      {/* Monster(s) positioned on the dungeon floor - bottom-[40%] aligns feet with the floor line */}
-      <div className="absolute left-[5%] right-[30%] bottom-[40%] flex items-end justify-center">
+      {/* Monster(s) positioned in lower-middle of the screen */}
+      <div className="absolute left-[5%] right-[30%] bottom-[25%] flex items-end justify-center">
         <div className="flex items-end gap-8">
           {combatState.monsters.slice(0, 3).map((monster, idx) => {
             const monsterSize = combatState.monsters.length === 1 
