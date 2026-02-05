@@ -1707,7 +1707,10 @@ export default function Game() {
           </div>
         )}
         
-        {/* LEFT COMBAT PANEL REMOVED - Using BattleView's integrated UI instead */}
+        {/* LEFT COMBAT PANEL - Empty placeholder to maintain layout (will add content later) */}
+        {isCombatFullscreen && (
+          <div className="w-72 h-full" />
+        )}
 
         {/* CENTER - Main game area (monsters during combat) */}
         <div className={`${isCombatFullscreen ? 'flex-1 h-full' : 'grid grid-cols-1 lg:grid-cols-12 gap-3 w-full'}`}>
