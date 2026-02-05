@@ -167,10 +167,10 @@ function TransparentMonster({
 
         // Only process if we found a clear dominant background color
         if (foundBg) {
-          // Higher tolerance for more aggressive background removal
-          const tolerance = 55;
+          // Hard clip tolerance - pixels within this distance are fully removed
+          const tolerance = 60;
 
-          // Process pixels - remove background
+          // Process pixels - hard clip background (no fading)
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
@@ -183,29 +183,11 @@ function TransparentMonster({
               Math.pow(b - bgB, 2)
             );
 
+            // Hard cutout - fully transparent if within tolerance, fully opaque otherwise
             if (distance < tolerance) {
-              // Fade based on distance - closer to bg color = more transparent
-              const alpha = Math.min(255, Math.max(0, (distance / tolerance) * 255));
-              data[i + 3] = Math.floor(alpha);
+              data[i + 3] = 0; // Fully transparent
             }
-          }
-
-          // Apply soft edge fade for natural blending
-          const fadeEdge = 6;
-          for (let y = 0; y < canvas.height; y++) {
-            for (let x = 0; x < canvas.width; x++) {
-              const idx = (y * canvas.width + x) * 4;
-              const distFromLeft = x;
-              const distFromRight = canvas.width - 1 - x;
-              const distFromTop = y;
-              const distFromBottom = canvas.height - 1 - y;
-              const minDist = Math.min(distFromLeft, distFromRight, distFromTop, distFromBottom);
-              
-              if (minDist < fadeEdge) {
-                const edgeFade = minDist / fadeEdge;
-                data[idx + 3] = Math.floor(data[idx + 3] * edgeFade);
-              }
-            }
+            // Keep original alpha for non-background pixels
           }
 
           ctx.putImageData(imageData, 0, 0);
