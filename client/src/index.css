@@ -640,3 +640,99 @@
     transform: rotate(15deg);
   }
 }
+
+/* Battle arena atmospheric animations */
+@keyframes float-up {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-150px) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes float-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(15px, -10px);
+  }
+  50% {
+    transform: translate(30px, 5px);
+  }
+  75% {
+    transform: translate(15px, 15px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes drip {
+  0% {
+    transform: translateY(-10px) scaleY(0.5);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+    transform: translateY(0) scaleY(1);
+  }
+  100% {
+    transform: translateY(200px) scaleY(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes snow {
+  0% {
+    transform: translateY(-20px) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(300px) translateX(40px);
+    opacity: 0;
+  }
+}
+
+.animate-float-up {
+  animation: float-up 4s ease-in-out infinite;
+}
+
+.animate-float-drift {
+  animation: float-drift 8s ease-in-out infinite;
+}
+
+.animate-drip {
+  animation: drip 2.5s ease-in infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.animate-snow {
+  animation: snow 5s linear infinite;
+}
