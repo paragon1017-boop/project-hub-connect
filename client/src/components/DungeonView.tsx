@@ -12,33 +12,36 @@ interface DungeonViewProps {
 }
 
 // Cache buster for texture reloads during development
-const TEXTURE_VERSION = 17;
+const TEXTURE_VERSION = 18;
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
-function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string } {
+function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string; extraFloors?: string[] } {
   const lvl = Math.max(1, Math.min(10, level));
   const v = `?v=${TEXTURE_VERSION}`;
   
-  // Level 1 uses new stone dungeon textures matching battle screen aesthetic
   if (lvl === 1) {
     return {
       wall: `/assets/textures/bricks_wall_floor1.PNG${v}`,
       floor: `/assets/textures/floorsbrick1.PNG${v}`,
-      ceiling: `/assets/textures/ceiling_stone_dungeon.png${v}`
+      ceiling: `/assets/textures/ceiling_stone_dungeon.png${v}`,
+      extraFloors: [
+        `/assets/textures/runefloors.PNG${v}`,
+        `/assets/textures/runefloors2.PNG${v}`,
+        `/assets/textures/runefloors3.PNG${v}`,
+      ]
     };
   }
   
-  // Levels 2-10 use the existing numbered texture assets
   return {
     wall: `/assets/textures/wall_${lvl}.png`,
     floor: `/assets/textures/floor_${lvl}.png`,
-    ceiling: '/assets/textures/ceiling_stone_dungeon.png' // Use same ceiling for now
+    ceiling: '/assets/textures/ceiling_stone_dungeon.png'
   };
 }
 
 export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY, onCanvasRef }: DungeonViewProps) {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; ceiling: HTMLImageElement | null; door: HTMLImageElement | null }>({ wall: null, floor: null, ceiling: null, door: null });
+  const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; ceiling: HTMLImageElement | null; door: HTMLImageElement | null; extraFloors: HTMLImageElement[] }>({ wall: null, floor: null, ceiling: null, door: null, extraFloors: [] });
   
   // Callback ref to notify parent when canvas is mounted, and store locally
   const setCanvasRef = useCallback((canvas: HTMLCanvasElement | null) => {
@@ -78,6 +81,15 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
       floorImg.onload = () => { texturesRef.current.floor = floorImg; draw(); };
       ceilingImg.onload = () => { texturesRef.current.ceiling = ceilingImg; draw(); };
       doorImg.onload = () => { texturesRef.current.door = doorImg; draw(); };
+      
+      texturesRef.current.extraFloors = [];
+      if (texturePaths.extraFloors) {
+        texturePaths.extraFloors.forEach((src) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => { texturesRef.current.extraFloors.push(img); draw(); };
+        });
+      }
     }
   }, [gameData.level]);
 
@@ -450,12 +462,10 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
 
     // Draw Floor with perspective floor casting (cobblestone walkway effect)
     const floorTex = texturesRef.current.floor;
+    const allFloorTextures = [floorTex, ...texturesRef.current.extraFloors].filter(Boolean) as HTMLImageElement[];
     if (floorTex) {
-      const texW = floorTex.width;
-      const texH = floorTex.height;
-      const texScale = 128; // Larger = bigger visible cobblestones
+      const texScale = 128;
       
-      // Floor casting - draw every scanline for maximum sharpness
       for (let y = Math.floor(h / 2) + 1; y < h; y++) {
         const p = y - h / 2;
         const rowDistance = (h * 0.5) / p;
@@ -466,13 +476,18 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
         let floorX = posX + rowDistance * (dirX - planeX);
         let floorY = posY + rowDistance * (dirY - planeY);
         
-        // Draw each pixel for sharp cobblestone texture
         for (let x = 0; x < w; x += 2) {
-          const tx = Math.floor(Math.abs(floorX * texScale) % texW);
-          const ty = Math.floor(Math.abs(floorY * texScale) % texH);
+          // Pick texture based on which tile we're over (consistent per tile)
+          const tileX = Math.floor(floorX);
+          const tileY = Math.floor(floorY);
+          const tileHash = ((tileX * 7919 + tileY * 104729) & 0x7fffffff) % allFloorTextures.length;
+          const tex = allFloorTextures[tileHash];
+          
+          const tx = Math.floor(Math.abs(floorX * texScale) % tex.width);
+          const ty = Math.floor(Math.abs(floorY * texScale) % tex.height);
           
           ctx.drawImage(
-            floorTex,
+            tex,
             tx, ty, 2, 2,
             x, y, 2, 1
           );
