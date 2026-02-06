@@ -174,7 +174,7 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     if (ceilingTex) {
       const texW = ceilingTex.width;
       const texH = ceilingTex.height;
-      const texScale = 128;
+      const texScale = 320;
       
       // Ceiling casting - mirror of floor casting
       for (let y = 0; y < Math.floor(h / 2); y++) {
@@ -214,7 +214,7 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     const floorTex = texturesRef.current.floor;
     const allFloorTextures = [floorTex, ...texturesRef.current.extraFloors].filter(Boolean) as HTMLImageElement[];
     if (floorTex) {
-      const texScale = 128;
+      const texScale = 320;
       
       for (let y = Math.floor(h / 2) + 1; y < h; y++) {
         const p = y - h / 2;
