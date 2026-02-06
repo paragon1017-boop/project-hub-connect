@@ -12,7 +12,7 @@ interface DungeonViewProps {
 }
 
 // Cache buster for texture reloads during development
-const TEXTURE_VERSION = 21;
+const TEXTURE_VERSION = 22;
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
 function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string; extraFloors?: string[] } {
@@ -60,33 +60,36 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     const level = Math.max(1, Math.min(10, gameData.level));
     const levelKey = `${level}-v${TEXTURE_VERSION}`;
     
-    // Only reload textures if level or version changed
-    if (currentLevelRef.current !== levelKey) {
-      currentLevelRef.current = levelKey;
-      const texturePaths = getTexturesForLevel(level);
-      
-      const wallImg = new Image();
-      wallImg.src = texturePaths.wall;
-      const floorImg = new Image();
-      floorImg.src = texturePaths.floor;
-      const ceilingImg = new Image();
-      ceilingImg.src = texturePaths.ceiling;
-      const doorImg = new Image();
-      doorImg.src = "/assets/textures/door_metal.png";
+    if (currentLevelRef.current === levelKey) return;
+    currentLevelRef.current = levelKey;
+    const texturePaths = getTexturesForLevel(level);
+    
+    const wallImg = new Image();
+    wallImg.crossOrigin = 'anonymous';
+    wallImg.src = texturePaths.wall;
+    const floorImg = new Image();
+    floorImg.crossOrigin = 'anonymous';
+    floorImg.src = texturePaths.floor;
+    const ceilingImg = new Image();
+    ceilingImg.crossOrigin = 'anonymous';
+    ceilingImg.src = texturePaths.ceiling;
+    const doorImg = new Image();
+    doorImg.crossOrigin = 'anonymous';
+    doorImg.src = `/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`;
 
-      wallImg.onload = () => { texturesRef.current.wall = wallImg; lastRenderState.current = null; draw(); };
-      floorImg.onload = () => { texturesRef.current.floor = floorImg; lastRenderState.current = null; draw(); };
-      ceilingImg.onload = () => { texturesRef.current.ceiling = ceilingImg; lastRenderState.current = null; draw(); };
-      doorImg.onload = () => { texturesRef.current.door = doorImg; lastRenderState.current = null; draw(); };
-      
-      texturesRef.current.extraFloors = [];
-      if (texturePaths.extraFloors) {
-        texturePaths.extraFloors.forEach((src) => {
-          const img = new Image();
-          img.src = src;
-          img.onload = () => { texturesRef.current.extraFloors.push(img); lastRenderState.current = null; draw(); };
-        });
-      }
+    wallImg.onload = () => { texturesRef.current.wall = wallImg; lastRenderState.current = null; draw(); };
+    floorImg.onload = () => { texturesRef.current.floor = floorImg; lastRenderState.current = null; draw(); };
+    ceilingImg.onload = () => { texturesRef.current.ceiling = ceilingImg; lastRenderState.current = null; draw(); };
+    doorImg.onload = () => { texturesRef.current.door = doorImg; lastRenderState.current = null; draw(); };
+    
+    texturesRef.current.extraFloors = [];
+    if (texturePaths.extraFloors) {
+      texturePaths.extraFloors.forEach((src) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = src;
+        img.onload = () => { texturesRef.current.extraFloors.push(img); lastRenderState.current = null; draw(); };
+      });
     }
   }, [gameData.level]);
 
