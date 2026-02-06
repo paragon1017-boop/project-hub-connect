@@ -12,7 +12,7 @@ interface DungeonViewProps {
 }
 
 // Cache buster for texture reloads during development
-const TEXTURE_VERSION = 19;
+const TEXTURE_VERSION = 20;
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
 function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string; extraFloors?: string[] } {
@@ -21,14 +21,9 @@ function getTexturesForLevel(level: number): { wall: string; floor: string; ceil
   
   if (lvl === 1) {
     return {
-      wall: `/assets/textures/bricks_wall_floor1.PNG${v}`,
-      floor: `/assets/textures/floorsbrick1.PNG${v}`,
-      ceiling: `/assets/textures/bricks_wall_floor1.PNG${v}`,
-      extraFloors: [
-        `/assets/textures/runefloors.PNG${v}`,
-        `/assets/textures/runefloors2.PNG${v}`,
-        `/assets/textures/runefloors3.PNG${v}`,
-      ]
+      wall: `/assets/textures/stone_wall_1.png${v}`,
+      floor: `/assets/textures/cobblestone_floor_1.png${v}`,
+      ceiling: `/assets/textures/stone_wall_1.png${v}`,
     };
   }
   
