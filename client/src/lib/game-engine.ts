@@ -555,7 +555,10 @@ export function getLevelUpStats(job: string): { hp: number, mp: number, attack: 
 export interface Monster extends Entity {
   xpValue: number;
   goldValue: number;
-  image?: string; // Optional sprite image URL
+  image?: string; // Optional sprite image URL (fallback for 2D)
+  modelPath?: string; // Optional 3D GLTF model path
+  use3D?: boolean; // Whether to use 3D rendering
+  modelScale?: number; // Scale factor for 3D model
 }
 
 export interface Tile {
@@ -592,6 +595,7 @@ export interface GameData {
   potionInventory: Potion[]; // Potions bag
   gold: number;
   level: number; // Dungeon Floor
+  viewportScale?: number; // User's preferred viewport scale (0.5-1.0)
 }
 
 // Initial State Factory
@@ -677,6 +681,20 @@ export function generateFloorMap(floor: number): { map: number[][]; startX: numb
   if (floor === 1) {
     startX = 1;
     startY = 1;
+    // Verify spawn position is clear
+    if (map[startY][startX] !== TILE_FLOOR) {
+      // Find nearest floor tile
+      for (let y = 1; y < map.length - 1; y++) {
+        for (let x = 1; x < map[0].length - 1; x++) {
+          if (map[y][x] === TILE_FLOOR) {
+            startX = x;
+            startY = y;
+            break;
+          }
+        }
+        if (map[startY][startX] === TILE_FLOOR) break;
+      }
+    }
   }
   
   return { map, startX, startY, ladderDownX, ladderDownY };
@@ -685,6 +703,48 @@ export function generateFloorMap(floor: number): { map: number[][]; startX: numb
 // Improved Maze Generation - ensures connectivity and proper starting area
 function generateMaze(width: number, height: number, floor: number = 1): number[][] {
   const map = Array(height).fill(0).map(() => Array(width).fill(1)); // Fill with walls
+  
+  // Carve a 2-tile wide corridor between two points
+  function carveWideCorridor(x1: number, y1: number, x2: number, y2: number) {
+    let x = x1;
+    let y = y1;
+    
+    while (x !== x2 || y !== y2) {
+      // Carve current position and adjacent for width
+      map[y][x] = TILE_FLOOR;
+      if (x + 1 < width - 1) map[y][x + 1] = TILE_FLOOR;
+      if (y + 1 < height - 1) map[y + 1][x] = TILE_FLOOR;
+      if (x + 1 < width - 1 && y + 1 < height - 1) map[y + 1][x + 1] = TILE_FLOOR;
+      
+      // Move toward target
+      if (x < x2) x++;
+      else if (x > x2) x--;
+      else if (y < y2) y++;
+      else if (y > y2) y--;
+    }
+    
+    // Carve target position too
+    map[y2][x2] = TILE_FLOOR;
+    if (x2 + 1 < width - 1) map[y2][x2 + 1] = TILE_FLOOR;
+    if (y2 + 1 < height - 1) map[y2 + 1][x2] = TILE_FLOOR;
+    if (x2 + 1 < width - 1 && y2 + 1 < height - 1) map[y2 + 1][x2 + 1] = TILE_FLOOR;
+  }
+  
+  // Carve a large room (grand chamber)
+  function carveGrandChamber(centerX: number, centerY: number, roomWidth: number, roomHeight: number) {
+    const startX = Math.max(1, centerX - Math.floor(roomWidth / 2));
+    const startY = Math.max(1, centerY - Math.floor(roomHeight / 2));
+    const endX = Math.min(width - 2, startX + roomWidth);
+    const endY = Math.min(height - 2, startY + roomHeight);
+    
+    for (let y = startY; y < endY; y++) {
+      for (let x = startX; x < endX; x++) {
+        map[y][x] = TILE_FLOOR;
+      }
+    }
+    
+    return { startX, startY, endX, endY };
+  }
   
   // Use iterative approach with explicit stack to avoid recursion issues
   function carveIterative(startX: number, startY: number) {
@@ -721,6 +781,34 @@ function generateMaze(width: number, height: number, floor: number = 1): number[
     }
   }
   
+  // Validate and ensure safe starting area
+  function validateStartArea(map: number[][], startX: number, startY: number) {
+    const requiredClear = [
+      [startX, startY],     // Player position
+      [startX + 1, startY], // Path forward
+      [startX + 2, startY], // Continue path
+      [startX - 1, startY]  // Entrance door area
+    ];
+    
+    for (const [x, y] of requiredClear) {
+      if (x >= 0 && x < map[0].length && y >= 0 && y < map.length) {
+        if (map[y][x] !== TILE_FLOOR) {
+          map[y][x] = TILE_FLOOR; // Force clear
+        }
+      }
+    }
+  }
+  
+  // Create grand chamber (15x15 minimum) - positioned away from start
+  const chamberCenterX = Math.floor(width * 0.7);
+  const chamberCenterY = Math.floor(height * 0.6);
+  const chamberWidth = 15 + Math.floor(Math.random() * 6); // 15-20 tiles wide
+  const chamberHeight = 15 + Math.floor(Math.random() * 6); // 15-20 tiles tall
+  const chamber = carveGrandChamber(chamberCenterX, chamberCenterY, chamberWidth, chamberHeight);
+  
+  // Create wide main corridor from start toward the grand chamber
+  carveWideCorridor(1, 1, chamberCenterX, chamberCenterY);
+  
   // Start carving from position (3, 1) to ensure room for starting area
   // First, ensure starting area is clear
   map[1][1] = 0; // Player start position
@@ -729,6 +817,9 @@ function generateMaze(width: number, height: number, floor: number = 1): number[
   
   // Carve maze from a point connected to start
   carveIterative(3, 1);
+  
+  // Validate start area after carving
+  validateStartArea(map, 1, 1);
   
   // Add additional connections to ensure the maze is more open and connected
   // Create some extra passages to avoid dead ends near start
@@ -759,8 +850,20 @@ function generateMaze(width: number, height: number, floor: number = 1): number[
   if (floor === 1) {
     map[1][0] = TILE_DOOR; // Door behind player at start (entrance to dungeon)
   } else {
-    // On deeper floors, place ladder UP near start (player comes from above)
-    map[1][1] = TILE_LADDER_UP;
+    // On deeper floors, place ladder UP near start but NOT at player position
+    // Find a safe spot near player for the ladder up
+    let ladderPlaced = false;
+    for (let checkX = 2; checkX < 5 && checkX < width; checkX++) {
+      if (map[1][checkX] === TILE_FLOOR) {
+        map[1][checkX] = TILE_LADDER_UP;
+        ladderPlaced = true;
+        break;
+      }
+    }
+    // Fallback: place at safe distance if no spot found
+    if (!ladderPlaced && map[1][4] === TILE_FLOOR) {
+      map[1][4] = TILE_LADDER_UP;
+    }
   }
   
   // Make sure player isn't boxed in - verify path exists to the east
@@ -769,24 +872,32 @@ function generateMaze(width: number, height: number, floor: number = 1): number[
     map[1][2] = 0; // Ensure path to the east
   }
   
-  // Place ladder DOWN to next level - find a floor tile far from start
-  let ladderDownX = 1, ladderDownY = 1;
-  let maxDistance = 0;
+  // Place ladder DOWN to next level - place it in the grand chamber
+  // Use the chamber's center area for the ladder
+  let ladderDownX = chamberCenterX;
+  let ladderDownY = chamberCenterY;
   
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      if (map[y][x] === TILE_FLOOR) {
-        const distance = Math.abs(x - 1) + Math.abs(y - 1); // Manhattan distance from start
-        if (distance > maxDistance) {
-          maxDistance = distance;
-          ladderDownX = x;
-          ladderDownY = y;
+  // Ensure the ladder position is valid floor
+  if (map[ladderDownY][ladderDownX] !== TILE_FLOOR) {
+    // Find nearest floor tile in chamber
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const checkX = ladderDownX + dx;
+        const checkY = ladderDownY + dy;
+        if (checkX > 0 && checkX < width - 1 && checkY > 0 && checkY < height - 1) {
+          if (map[checkY][checkX] === TILE_FLOOR) {
+            ladderDownX = checkX;
+            ladderDownY = checkY;
+            dx = 3; // Break outer loop
+            dy = 3;
+            break;
+          }
         }
       }
     }
   }
   
-  // Place the ladder down at the farthest reachable point
+  // Place the ladder down in the grand chamber
   map[ladderDownY][ladderDownX] = TILE_LADDER_DOWN;
   
   return map;
@@ -804,6 +915,17 @@ export const MONSTERS: Monster[] = [
   { id: 'm7', name: 'Kobold', hp: 20, maxHp: 20, mp: 0, maxMp: 0, attack: 5, defense: 2, speed: 8, xpValue: 11, goldValue: 6, color: '#8b6914', image: koboldSprite },
   { id: 'm8', name: 'Fire Imp', hp: 14, maxHp: 14, mp: 10, maxMp: 10, attack: 7, defense: 1, speed: 12, xpValue: 12, goldValue: 8, color: '#ff4500', image: fireImpSprite },
   { id: 'm9', name: 'Shadow Wisp', hp: 10, maxHp: 10, mp: 15, maxMp: 15, attack: 8, defense: 0, speed: 15, xpValue: 11, goldValue: 7, color: '#2c2c54', image: shadowWispSprite },
+  { id: 'm30', name: 'Monster Plant', hp: 35, maxHp: 35, mp: 0, maxMp: 0, attack: 6, defense: 4, speed: 2, xpValue: 18, goldValue: 12, color: '#2d5016', image: poisonMushroomSprite, modelPath: '/assets/models/monsters/monster_plant/scene.gltf', use3D: true, modelScale: 0.025 },
+  { id: 'm170', name: 'Sunflower Sentinel', hp: 40, maxHp: 40, mp: 10, maxMp: 10, attack: 7, defense: 5, speed: 4, xpValue: 25, goldValue: 22, color: '#9ACD32', image: 'sunflower_sentinel.png', modelPath: '/assets/models/monsters/monster_plant/sunflower_sentinel.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm171', name: 'Carnivorous Plant', hp: 55, maxHp: 55, mp: 0, maxMp: 0, attack: 11, defense: 4, speed: 5, xpValue: 35, goldValue: 30, color: '#228B22', image: 'carnivorous_plant.png', modelPath: '/assets/models/monsters/monster_plant/carnivorous_plant.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm172', name: 'Spore Cloud', hp: 30, maxHp: 30, mp: 0, maxMp: 0, attack: 5, defense: 0, speed: 12, xpValue: 20, goldValue: 16, color: '#98FB98', image: 'spore_cloud.png', modelPath: '/assets/models/monsters/monster_plant/spore_cloud.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm173', name: 'Vine Behemoth', hp: 85, maxHp: 85, mp: 0, maxMp: 0, attack: 17, defense: 9, speed: 3, xpValue: 60, goldValue: 55, color: '#2E8B57', image: 'vine_behemoth.png', modelPath: '/assets/models/monsters/monster_plant/vine_behemoth.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm174', name: 'Mushroom King', hp: 70, maxHp: 70, mp: 25, maxMp: 25, attack: 14, defense: 6, speed: 6, xpValue: 50, goldValue: 45, color: '#7CFC00', image: 'mushroom_king.png', modelPath: '/assets/models/monsters/monster_plant/mushroom_king.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm175', name: 'Thorn Bush', hp: 45, maxHp: 45, mp: 0, maxMp: 0, attack: 8, defense: 8, speed: 2, xpValue: 30, goldValue: 28, color: '#8B4513', image: 'thorn_bush.png', modelPath: '/assets/models/monsters/monster_plant/thorn_bush.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm176', name: 'Lotus Guardian', hp: 60, maxHp: 60, mp: 20, maxMp: 20, attack: 12, defense: 7, speed: 7, xpValue: 42, goldValue: 38, color: '#32CD32', image: 'lotus_guardian.png', modelPath: '/assets/models/monsters/monster_plant/lotus_guardian.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm177', name: 'Cactus Sprite', hp: 35, maxHp: 35, mp: 5, maxMp: 5, attack: 9, defense: 10, speed: 8, xpValue: 28, goldValue: 25, color: '#2E8B57', image: 'cactus_sprite.png', modelPath: '/assets/models/monsters/monster_plant/cactus_sprite.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm178', name: 'Root Guardian', hp: 75, maxHp: 75, mp: 0, maxMp: 0, attack: 15, defense: 11, speed: 4, xpValue: 55, goldValue: 50, color: '#2E8B57', image: 'root_guardian.png', modelPath: '/assets/models/monsters/monster_plant/root_guardian.glb', use3D: true, modelScale: 0.03 },
+  { id: 'm179', name: 'Bloom Wisp', hp: 25, maxHp: 25, mp: 15, maxMp: 15, attack: 6, defense: 1, speed: 10, xpValue: 22, goldValue: 20, color: '#7CFC00', image: 'bloom_wisp.png', modelPath: '/assets/models/monsters/monster_plant/bloom_wisp.glb', use3D: true, modelScale: 0.03 },
   
   // === MID FLOOR MONSTERS (Floors 3-5) ===
   { id: 'm10', name: 'Dungeon Spider', hp: 22, maxHp: 22, mp: 0, maxMp: 0, attack: 6, defense: 2, speed: 11, xpValue: 12, goldValue: 7, color: '#2c3e50', image: dungeonSpiderSprite },
@@ -834,18 +956,18 @@ export const MONSTERS: Monster[] = [
 
 export function getRandomMonster(floor: number): Monster {
   // Monster tiers unlock based on floor depth:
-  // Floor 1-2: Early monsters (indices 0-8)
-  // Floor 3-5: + Mid monsters (indices 9-17)
-  // Floor 6-8: + Deep monsters (indices 18-23)
-  // Floor 9+:  + Boss-tier monsters (indices 24-28)
+  // Floor 1-2: Early monsters + Monster Plant (indices 0-9)
+  // Floor 3-5: + Mid monsters (indices 10-18)
+  // Floor 6-8: + Deep monsters (indices 19-24)
+  // Floor 9+:  + Boss-tier monsters (indices 25-29)
   
   let maxIndex: number;
   if (floor <= 2) {
-    maxIndex = 9;  // Early monsters only
+    maxIndex = 10;  // Early monsters + Monster Plant
   } else if (floor <= 5) {
-    maxIndex = 18; // + Mid monsters
+    maxIndex = 19; // + Mid monsters
   } else if (floor <= 8) {
-    maxIndex = 24; // + Deep monsters
+    maxIndex = 25; // + Deep monsters
   } else {
     maxIndex = MONSTERS.length; // All monsters including bosses
   }

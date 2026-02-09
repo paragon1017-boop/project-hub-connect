@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronRight, Swords, Shield, DoorOpen, Zap, Skull, Wand2, Hand } from "lucide-react";
 import type { GameData, Monster, Player, Ability } from "@/lib/game-engine";
+import { TransparentMonster, type MonsterAnimationState } from "./TransparentMonster";
+import { Monster3D } from "./Monster3D";
 
 // Level 1 Stone Dungeon backgrounds - randomly selected per battle
 import stoneDungeonBg1 from "@assets/Gemini_Generated_Image_haabe3haabe3haab_1770316826611.png";
@@ -60,194 +62,7 @@ function JobIcon({ job, className }: { job: string; className?: string }) {
   }
 }
 
-function TransparentMonster({ 
-  src, 
-  alt, 
-  className,
-  animationState = 'idle',
-  isFlying = false
-}: { 
-  src: string; 
-  alt: string; 
-  className?: string;
-  animationState?: 'idle' | 'attacking' | 'hit';
-  isFlying?: boolean;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [processingState, setProcessingState] = useState<'loading' | 'processed' | 'fallback'>('loading');
 
-  useEffect(() => {
-    setProcessingState('loading');
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      setProcessingState('fallback');
-      return;
-    }
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) {
-      setProcessingState('fallback');
-      return;
-    }
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      try {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // Sample edge pixels but only 1 pixel deep to avoid hitting sprite content
-        const edgePixels: number[][] = [];
-        const edgeDepth = 1; // Only 1 pixel deep - very conservative
-        
-        // Top edge
-        for (let y = 0; y < edgeDepth; y++) {
-          for (let x = 0; x < canvas.width; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            edgePixels.push([data[idx], data[idx + 1], data[idx + 2]]);
-          }
-        }
-        // Bottom edge
-        for (let y = canvas.height - edgeDepth; y < canvas.height; y++) {
-          for (let x = 0; x < canvas.width; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            edgePixels.push([data[idx], data[idx + 1], data[idx + 2]]);
-          }
-        }
-        // Left edge (excluding corners already counted)
-        for (let y = edgeDepth; y < canvas.height - edgeDepth; y++) {
-          for (let x = 0; x < edgeDepth; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            edgePixels.push([data[idx], data[idx + 1], data[idx + 2]]);
-          }
-        }
-        // Right edge (excluding corners already counted)
-        for (let y = edgeDepth; y < canvas.height - edgeDepth; y++) {
-          for (let x = canvas.width - edgeDepth; x < canvas.width; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            edgePixels.push([data[idx], data[idx + 1], data[idx + 2]]);
-          }
-        }
-
-        // Find the most common edge color (the background)
-        const colorCounts: Record<string, { count: number; r: number; g: number; b: number }> = {};
-        edgePixels.forEach(([r, g, b]) => {
-          // Quantize to group similar colors
-          const qr = Math.round(r / 15) * 15;
-          const qg = Math.round(g / 15) * 15;
-          const qb = Math.round(b / 15) * 15;
-          const key = `${qr},${qg},${qb}`;
-          if (!colorCounts[key]) {
-            colorCounts[key] = { count: 0, r: qr, g: qg, b: qb };
-          }
-          colorCounts[key].count++;
-        });
-
-        // Get the most common color - just needs to be the dominant one (>25% threshold)
-        let bgR = 0, bgG = 0, bgB = 0;
-        let maxCount = 0;
-        let foundBg = false;
-        const totalPixels = edgePixels.length;
-        for (const entry of Object.values(colorCounts)) {
-          // Low threshold - just find the most common edge color
-          if (entry.count > maxCount && entry.count > totalPixels * 0.25) {
-            maxCount = entry.count;
-            bgR = entry.r;
-            bgG = entry.g;
-            bgB = entry.b;
-            foundBg = true;
-          }
-        }
-
-        // Only process if we found a clear dominant background color
-        if (foundBg) {
-          // Hard clip tolerance - ultra conservative to preserve all sprite details
-          const tolerance = 18;
-
-          // Process pixels - hard clip background (no fading)
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-
-            // Calculate color distance from background
-            const distance = Math.sqrt(
-              Math.pow(r - bgR, 2) +
-              Math.pow(g - bgG, 2) +
-              Math.pow(b - bgB, 2)
-            );
-
-            // Hard cutout - fully transparent if within tolerance, fully opaque otherwise
-            if (distance < tolerance) {
-              data[i + 3] = 0; // Fully transparent
-            }
-            // Keep original alpha for non-background pixels
-          }
-
-          ctx.putImageData(imageData, 0, 0);
-          setProcessingState('processed');
-        } else {
-          // No dominant background found - use fallback image
-          setProcessingState('fallback');
-        }
-      } catch (e) {
-        // Canvas tainted by CORS or other error - fallback to original image
-        console.warn('Could not process monster image, using fallback:', e);
-        setProcessingState('fallback');
-      }
-    };
-
-    img.onerror = () => {
-      setProcessingState('fallback');
-    };
-
-    img.src = src;
-  }, [src]);
-
-  const getAnimationStyle = () => {
-    switch (animationState) {
-      case 'attacking':
-        return { transform: 'translateX(30px) scale(1.1)', filter: 'brightness(1.3)' };
-      case 'hit':
-        return { transform: 'translateX(-10px)', filter: 'brightness(1.5) hue-rotate(30deg)' };
-      default:
-        return {};
-    }
-  };
-
-  return (
-    <div 
-      className={`relative transition-all duration-200 ${isFlying ? 'animate-float' : ''}`}
-      style={getAnimationStyle()}
-    >
-      {/* Processed canvas - shown when background removal succeeds */}
-      <canvas 
-        ref={canvasRef}
-        className={`${className} object-contain ${processingState === 'processed' ? 'opacity-100' : 'opacity-0 absolute'}`}
-        style={{ 
-          transition: 'opacity 0.2s ease-in'
-        }}
-      />
-      {/* Fallback image - shown when canvas processing fails or during loading */}
-      {processingState !== 'processed' && (
-        <img 
-          src={src} 
-          alt={alt} 
-          className={`${className} object-contain ${processingState === 'fallback' ? 'opacity-100' : 'opacity-0'}`}
-          style={{ 
-            transition: 'opacity 0.2s ease-in'
-          }}
-        />
-      )}
-    </div>
-  );
-}
 
 function isFlying(name: string): boolean {
   const flyingTypes = ['bat', 'bird', 'dragon', 'fairy', 'ghost', 'spirit', 'wisp', 'eye', 'floating'];
@@ -862,7 +677,7 @@ export function BattleView({
   }, [theme.backgroundImages]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden" data-testid="battle-view">
+    <div className="relative w-full h-full overflow-hidden bg-gray-900" data-testid="battle-view">
       {/* Background - either custom image or procedural theme */}
       {selectedBackground ? (
         <>
@@ -958,12 +773,21 @@ export function BattleView({
                   </div>
                 )}
                 
-                {monster.image ? (
+                {monster.use3D && monster.modelPath ? (
+                  <div className={monsterSize}>
+                    <Monster3D
+                      modelPath={monster.modelPath}
+                      scale={monster.modelScale || 1}
+                      animationState={monsterAnimations[idx] as MonsterAnimationState || 'idle'}
+                      isFlying={isFlying(monster.name)}
+                    />
+                  </div>
+                ) : monster.image ? (
                   <TransparentMonster
                     src={monster.image}
                     alt={monster.name}
                     className={monsterSize}
-                    animationState={monsterAnimations[idx] as 'idle' | 'attacking' | 'hit' || 'idle'}
+                    animationState={monsterAnimations[idx] as MonsterAnimationState || 'idle'}
                     isFlying={isFlying(monster.name)}
                   />
                 ) : (

@@ -170,16 +170,16 @@ export const ADDITIONAL_MONSTERS: Monster[] = [
   { id: 'm169', name: 'Firefly Swarm', hp: 20, maxHp: 20, mp: 0, maxMp: 0, attack: 4, defense: 0, speed: 16, xpValue: 16, goldValue: 14, color: '#FFD700', image: 'firefly_swarm.png' },
 
   // === PLANT/FUNGAL MONSTERS ===
-  { id: 'm170', name: 'Sunflower Sentinel', hp: 40, maxHp: 40, mp: 10, maxMp: 10, attack: 7, defense: 5, speed: 4, xpValue: 25, goldValue: 22, color: '#FFD700', image: 'sunflower_sentinel.png' },
-  { id: 'm171', name: 'Carnivorous Plant', hp: 55, maxHp: 55, mp: 0, maxMp: 0, attack: 11, defense: 4, speed: 5, xpValue: 35, goldValue: 30, color: '#228B22', image: 'carnivorous_plant.png' },
-  { id: 'm172', name: 'Spore Cloud', hp: 30, maxHp: 30, mp: 0, maxMp: 0, attack: 5, defense: 0, speed: 12, xpValue: 20, goldValue: 16, color: '#98FB98', image: 'spore_cloud.png' },
-  { id: 'm173', name: 'Vine Behemoth', hp: 85, maxHp: 85, mp: 0, maxMp: 0, attack: 17, defense: 9, speed: 3, xpValue: 60, goldValue: 55, color: '#006400', image: 'vine_behemoth.png' },
-  { id: 'm174', name: 'Mushroom King', hp: 70, maxHp: 70, mp: 25, maxMp: 25, attack: 14, defense: 6, speed: 6, xpValue: 50, goldValue: 45, color: '#FF69B4', image: 'mushroom_king.png' },
-  { id: 'm175', name: 'Thorn Bush', hp: 45, maxHp: 45, mp: 0, maxMp: 0, attack: 8, defense: 8, speed: 2, xpValue: 30, goldValue: 28, color: '#8B4513', image: 'thorn_bush.png' },
-  { id: 'm176', name: 'Lotus Guardian', hp: 60, maxHp: 60, mp: 20, maxMp: 20, attack: 12, defense: 7, speed: 7, xpValue: 42, goldValue: 38, color: '#DA70D6', image: 'lotus_guardian.png' },
-  { id: 'm177', name: 'Cactus Sprite', hp: 35, maxHp: 35, mp: 5, maxMp: 5, attack: 9, defense: 10, speed: 8, xpValue: 28, goldValue: 25, color: '#32CD32', image: 'cactus_sprite.png' },
-  { id: 'm178', name: 'Root Guardian', hp: 75, maxHp: 75, mp: 0, maxMp: 0, attack: 15, defense: 11, speed: 4, xpValue: 55, goldValue: 50, color: '#654321', image: 'root_guardian.png' },
-  { id: 'm179', name: 'Bloom Wisp', hp: 25, maxHp: 25, mp: 15, maxMp: 15, attack: 6, defense: 1, speed: 10, xpValue: 22, goldValue: 20, color: '#FFB6C1', image: 'bloom_wisp.png' },
+  { id: 'm170', name: 'Sunflower Sentinel', hp: 40, maxHp: 40, mp: 10, maxMp: 10, attack: 7, defense: 5, speed: 4, xpValue: 25, goldValue: 22, color: '#9ACD32', image: 'sunflower_sentinel.png', modelPath: '/assets/models/monsters/monster_plant/sunflower_sentinel.glb' },
+  { id: 'm171', name: 'Carnivorous Plant', hp: 55, maxHp: 55, mp: 0, maxMp: 0, attack: 11, defense: 4, speed: 5, xpValue: 35, goldValue: 30, color: '#228B22', image: 'carnivorous_plant.png', modelPath: '/assets/models/monsters/monster_plant/carnivorous_plant.glb' },
+  { id: 'm172', name: 'Spore Cloud', hp: 30, maxHp: 30, mp: 0, maxMp: 0, attack: 5, defense: 0, speed: 12, xpValue: 20, goldValue: 16, color: '#98FB98', image: 'spore_cloud.png', modelPath: '/assets/models/monsters/monster_plant/spore_cloud.glb' },
+  { id: 'm173', name: 'Vine Behemoth', hp: 85, maxHp: 85, mp: 0, maxMp: 0, attack: 17, defense: 9, speed: 3, xpValue: 60, goldValue: 55, color: '#2E8B57', image: 'vine_behemoth.png', modelPath: '/assets/models/monsters/monster_plant/vine_behemoth.glb' },
+  { id: 'm174', name: 'Mushroom King', hp: 70, maxHp: 70, mp: 25, maxMp: 25, attack: 14, defense: 6, speed: 6, xpValue: 50, goldValue: 45, color: '#7CFC00', image: 'mushroom_king.png', modelPath: '/assets/models/monsters/monster_plant/mushroom_king.glb' },
+  { id: 'm175', name: 'Thorn Bush', hp: 45, maxHp: 45, mp: 0, maxMp: 0, attack: 8, defense: 8, speed: 2, xpValue: 30, goldValue: 28, color: '#8B4513', image: 'thorn_bush.png', modelPath: '/assets/models/monsters/monster_plant/thorn_bush.glb' },
+  { id: 'm176', name: 'Lotus Guardian', hp: 60, maxHp: 60, mp: 20, maxMp: 20, attack: 12, defense: 7, speed: 7, xpValue: 42, goldValue: 38, color: '#32CD32', image: 'lotus_guardian.png', modelPath: '/assets/models/monsters/monster_plant/lotus_guardian.glb' },
+  { id: 'm177', name: 'Cactus Sprite', hp: 35, maxHp: 35, mp: 5, maxMp: 5, attack: 9, defense: 10, speed: 8, xpValue: 28, goldValue: 25, color: '#2E8B57', image: 'cactus_sprite.png', modelPath: '/assets/models/monsters/monster_plant/cactus_sprite.glb' },
+  { id: 'm178', name: 'Root Guardian', hp: 75, maxHp: 75, mp: 0, maxMp: 0, attack: 15, defense: 11, speed: 4, xpValue: 55, goldValue: 50, color: '#2E8B57', image: 'root_guardian.png', modelPath: '/assets/models/monsters/monster_plant/root_guardian.glb' },
+  { id: 'm179', name: 'Bloom Wisp', hp: 25, maxHp: 25, mp: 15, maxMp: 15, attack: 6, defense: 1, speed: 10, xpValue: 22, goldValue: 20, color: '#7CFC00', image: 'bloom_wisp.png', modelPath: '/assets/models/monsters/monster_plant/bloom_wisp.glb' },
 
   // === HYBRID/CHIMERA MONSTERS ===
   { id: 'm180', name: 'Griffowl', hp: 55, maxHp: 55, mp: 0, maxMp: 0, attack: 12, defense: 5, speed: 11, xpValue: 38, goldValue: 35, color: '#DAA520', image: 'griffowl.png' },

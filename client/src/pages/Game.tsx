@@ -1,16 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Component, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGameState, useSaveGame } from "@/hooks/use-game";
-import { DungeonView } from "@/components/DungeonView";
-import { WebGLPostProcess } from "@/components/WebGLPostProcess";
+import { WebGLDungeonView } from "@/components/WebGLDungeonView";
 import { BattleView } from "@/components/BattleView";
-import dungeonWallBg from "@assets/Gemini_Generated_Image_8w52n78w52n78w52_1769494784513.png";
-import { TransparentMonster, MonsterAnimationState } from "@/components/TransparentMonster";
+import { MonsterAnimationState } from "@/components/TransparentMonster";
+import { MonsterSpawner } from "@/components/MonsterSpawner";
 import { RetroCard, RetroButton, StatBar } from "@/components/RetroUI";
+import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { 
   GameData, createInitialState, 
   NORTH, SOUTH, EAST, WEST, 
-  getRandomMonster, Monster,
+  getRandomMonster, Monster, MONSTERS,
   xpForLevel, getLevelUpStats, Player,
   Ability, getAbilitiesForJob, getScaledAbilityPower,
   getEffectiveStats, getCombatStats, getActiveSetBonuses, getEquippedItemsArray,
@@ -22,14 +22,29 @@ import {
   Potion, getRandomPotionDrop
 } from "@/lib/game-engine";
 import { useKey } from "react-use";
+import { getPreloadedFloor, isPreloadReady } from "@/utils/preload";
 import { Loader2, Skull, Sword, User, LogOut, Save, RotateCw, RotateCcw, ArrowUp, ChevronDown, Backpack, Settings, HelpCircle, X, Maximize2, Minimize2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-// Graphics resolution presets
-type GraphicsQuality = 'high' | 'medium' | 'low';
-const RESOLUTION_PRESETS: Record<GraphicsQuality, { width: number; height: number; label: string }> = {
-  high: { width: 1024, height: 640, label: 'High (1024x640)' },
-  medium: { width: 800, height: 500, label: 'Medium (800x500)' },
-  low: { width: 640, height: 400, label: 'Low (640x400)' }
+// Graphics resolution presets with proper 4:3 aspect ratios
+type GraphicsQuality = 'vga' | 'svga' | 'xga' | 'sxga' | 'widescreen' | 'hd' | 'cinema';
+const RESOLUTION_PRESETS: Record<GraphicsQuality, { width: number; height: number; label: string; aspect: string }> = {
+  vga: { width: 640, height: 480, label: '640×480 (4:3 VGA)', aspect: '4:3' },
+  svga: { width: 800, height: 600, label: '800×600 (4:3 SVGA)', aspect: '4:3' },
+  xga: { width: 1024, height: 768, label: '1024×768 (4:3 XGA)', aspect: '4:3' },
+  sxga: { width: 1280, height: 960, label: '1280×960 (4:3 SXGA)', aspect: '4:3' },
+  widescreen: { width: 1366, height: 768, label: '1366×768 (16:9)', aspect: '16:9' },
+  cinema: { width: 1600, height: 900, label: '1600×900 (16:9)', aspect: '16:9' },
+  hd: { width: 1920, height: 1080, label: '1920×1080 (16:9 HD)', aspect: '16:9' }
 };
 
 function formatEquipmentStats(item: Equipment): string {
@@ -40,6 +55,50 @@ function formatEquipmentStats(item: Equipment): string {
   if (stats.hp > 0) parts.push(`+${stats.hp} HP`);
   if (stats.mp > 0) parts.push(`+${stats.mp} MP`);
   return parts.join(' ');
+}
+
+// Error boundary to catch BattleView crashes and prevent permanent black screen
+class BattleErrorBoundary extends Component<
+  { children: ReactNode; onError?: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; onError?: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[BattleView Error]', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 text-white">
+          <Skull className="w-16 h-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-pixel text-red-400 mb-2">Battle Error</h2>
+          <p className="text-gray-400 mb-4 text-center px-8">
+            Something went wrong during combat.<br/>
+            {this.state.error?.message}
+          </p>
+          <button
+            className="px-6 py-2 bg-red-700 hover:bg-red-600 text-white rounded font-pixel transition-colors"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onError?.();
+            }}
+          >
+            Flee from Battle
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function Game() {
@@ -61,6 +120,7 @@ export default function Game() {
   }>({ active: false, monsters: [], targetIndex: 0, turn: 0, currentCharIndex: 0, turnOrder: [], turnOrderPosition: 0, defending: false });
   const [monsterAnimations, setMonsterAnimations] = useState<{ [key: number]: MonsterAnimationState }>({});
   const [showGameOver, setShowGameOver] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
   const gameOverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const showGameOverRef = useRef(false);
   
@@ -97,12 +157,6 @@ export default function Game() {
     }
   }>({});
   
-  // Helper to check if monster is flying type
-  const isFlying = (name: string) => {
-    const flyingMonsters = ['cave bat', 'shadow wisp', 'harpy', 'wraith', 'gargoyle'];
-    return flyingMonsters.some(f => name.toLowerCase().includes(f));
-  };
-  
   // Trigger monster animation
   const triggerMonsterAnimation = (monsterIndex: number, state: MonsterAnimationState, duration: number = 600) => {
     setMonsterAnimations(prev => ({ ...prev, [monsterIndex]: state }));
@@ -121,9 +175,9 @@ export default function Game() {
   const [showHelp, setShowHelp] = useState(false);
   const [helpFilter, setHelpFilter] = useState<string>('all');
   const [helpTab, setHelpTab] = useState<'items' | 'sets'>('items');
-  const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('high');
-  const [postProcessing, setPostProcessing] = useState(true);  // WebGL post-processing effects
-  const [dungeonCanvasRef, setDungeonCanvasRef] = useState<HTMLCanvasElement | null>(null);
+  const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('svga');
+  // Viewport scaling to prevent GUI overlap
+  const [viewportScale, setViewportScale] = useState(0.7); // 70% default - less GUI overlap
   const [showSettings, setShowSettings] = useState(false);
   const [showCheatMenu, setShowCheatMenu] = useState(false);
   const [isCombatFullscreen, setIsCombatFullscreen] = useState(false);
@@ -132,6 +186,7 @@ export default function Game() {
   const [selectedCharForStats, setSelectedCharForStats] = useState(0);
   const [selectedCharForPotion, setSelectedCharForPotion] = useState(0);
   const gameContainerRef = useRef<HTMLDivElement>(null);
+  // Removed startup save gating; no first-move save flag
   
   // Visual position for smooth movement interpolation
   const [visualPos, setVisualPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -159,90 +214,133 @@ export default function Game() {
     }
   }, [combatState.active]);
 
-  // Initialize game state from server or default
-  useEffect(() => {
-    if (!isLoading) {
-      if (serverState && serverState.data) {
-        // Migrate old saves that don't have equipment fields
-        const loadedData = serverState.data as unknown as GameData;
-        
-        // Add equipment to party members if missing (migrate old saves)
-        const migratedParty = loadedData.party.map(char => {
-          if (!char.equipment) {
-            return {
-              ...char,
-              equipment: { weapon: null, shield: null, armor: null, helmet: null, gloves: null, boots: null, necklace: null, ring1: null, ring2: null, relic: null, offhand: null }
-            };
-          }
-          // Migrate old equipment format (add missing slots)
-          // Handle legacy 'accessory' slot -> migrate to ring1
-          const legacyAccessory = (char.equipment as any).accessory ?? null;
-          const existingRing1 = (char.equipment as any).ring1 ?? null;
-          const existingRing2 = (char.equipment as any).ring2 ?? null;
-          
-          // Class-based slot restrictions:
-          // Fighter: can use shield (no offhand/relic)
-          // Mage: can use offhand and relic (no shield)
-          // Monk: can use offhand (no shield/relic)
-          const job = char.job;
-          const canUseShield = job === 'Fighter';
-          const canUseOffhand = job !== 'Fighter';
-          const canUseRelic = job === 'Mage';
-          
-          const migratedEquipment = {
-            weapon: char.equipment.weapon ?? null,
-            // Clear shield for non-Fighters
-            shield: canUseShield ? (char.equipment.shield ?? null) : null,
-            armor: char.equipment.armor ?? null,
-            helmet: char.equipment.helmet ?? null,
-            gloves: char.equipment.gloves ?? null,
-            boots: (char.equipment as any).boots ?? null,
-            necklace: (char.equipment as any).necklace ?? null,
-            // Migrate legacy accessory to ring1 if ring1 is empty, else to ring2
-            ring1: existingRing1 ?? legacyAccessory ?? null,
-            ring2: existingRing2 ?? (existingRing1 ? legacyAccessory : null) ?? null,
-            // Clear relic for non-Mages
-            relic: canUseRelic ? ((char.equipment as any).relic ?? null) : null,
-            // Clear offhand for Fighters
-            offhand: canUseOffhand ? ((char.equipment as any).offhand ?? null) : null,
-          };
-          return { ...char, equipment: migratedEquipment };
-        });
-        
-        // Add equipmentInventory and potionInventory if missing
-        const migratedData: GameData = {
-          ...loadedData,
-          party: migratedParty,
-          equipmentInventory: loadedData.equipmentInventory || [],
-          potionInventory: loadedData.potionInventory || [],
-        };
-        
-        setGame(migratedData);
-        // Initialize visual position to match loaded game
-        setVisualPos({ x: migratedData.x, y: migratedData.y });
-        visualPosRef.current = { x: migratedData.x, y: migratedData.y };
-        targetPosRef.current = { x: migratedData.x, y: migratedData.y };
-        log("Game loaded from server.");
-      } else {
-        const newGame = createInitialState();
-        setGame(newGame);
-        // Initialize visual position for new game
-        setVisualPos({ x: newGame.x, y: newGame.y });
-        visualPosRef.current = { x: newGame.x, y: newGame.y };
-        targetPosRef.current = { x: newGame.x, y: newGame.y };
-        log("New game started.");
-      }
-    }
-  }, [serverState, isLoading]);
+  // Check URL params for game mode
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isNewGame = urlParams?.get('new') === '1';
+  const isContinue = urlParams?.get('continue') === '1';
 
-  // Smooth movement interpolation animation loop
+  // Initialize game state (reverted to original main menu behavior)
   useEffect(() => {
-    const INTERPOLATION_SPEED = 20; // Higher = faster movement (tiles per second)
+    if (isLoading) return;
+
+    if (isNewGame && !isContinue) {
+      // Use preloaded floor 1 if available to speed startup
+      let initial = createInitialState();
+      if (isPreloadReady()) {
+        const floor1 = getPreloadedFloor(1);
+        if (floor1) {
+          initial = {
+            ...(initial as any),
+            map: floor1.map,
+            x: floor1.startX,
+            y: floor1.startY
+          } as GameData;
+        }
+      }
+      setGame(initial);
+      targetPosRef.current = { x: initial.x, y: initial.y };
+      visualPosRef.current = { x: initial.x, y: initial.y };
+    } else if (serverState && serverState.data && isContinue) {
+      const loadedData = serverState.data as unknown as GameData;
+      setGame(loadedData);
+      targetPosRef.current = { x: loadedData.x, y: loadedData.y };
+      visualPosRef.current = { x: loadedData.x, y: loadedData.y };
+    } else if (serverState && serverState.data) {
+      const loadedData = serverState.data as unknown as GameData;
+      setGame(loadedData);
+      targetPosRef.current = { x: loadedData.x, y: loadedData.y };
+      visualPosRef.current = { x: loadedData.x, y: loadedData.y };
+    } else {
+      const initial = createInitialState();
+      setGame(initial);
+      targetPosRef.current = { x: initial.x, y: initial.y };
+      visualPosRef.current = { x: initial.x, y: initial.y };
+    }
+  }, [isLoading, isNewGame, isContinue, serverState]);
+
+  // Migrate old saves on load
+  useEffect(() => {
+    if (!game || !serverState?.data) return;
+    
+    const loadedData = serverState.data as unknown as GameData;
+    
+    // Safety checks - ensure party exists
+    if (!loadedData.party || !Array.isArray(loadedData.party)) {
+      return;
+    }
+    
+    const needsMigration = loadedData.party.some(char => !char || !char.equipment);
+    
+    if (needsMigration) {
+      const migratedParty = loadedData.party.map(char => {
+        if (!char) {
+          return {
+            id: `char_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name: "Unknown",
+            job: "Fighter",
+            level: 1,
+            xp: 0,
+            hp: 100,
+            maxHp: 100,
+            mp: 20,
+            maxMp: 20,
+            attack: 10,
+            defense: 5,
+            speed: 5,
+            color: '#888888',
+            equipment: { weapon: null, shield: null, armor: null, helmet: null, gloves: null, boots: null, necklace: null, ring1: null, ring2: null, relic: null, offhand: null }
+          };
+        }
+        if (!char.equipment) {
+          return {
+            ...char,
+            color: char.color || '#888888',
+            equipment: { weapon: null, shield: null, armor: null, helmet: null, gloves: null, boots: null, necklace: null, ring1: null, ring2: null, relic: null, offhand: null }
+          };
+        }
+        const legacyAccessory = (char.equipment as any).accessory ?? null;
+        const existingRing1 = (char.equipment as any).ring1 ?? null;
+        const existingRing2 = (char.equipment as any).ring2 ?? null;
+        const job = char.job;
+        const canUseShield = job === 'Fighter';
+        const canUseOffhand = job !== 'Fighter';
+        const canUseRelic = job === 'Mage';
+        const migratedEquipment = {
+          weapon: char.equipment.weapon ?? null,
+          shield: canUseShield ? (char.equipment.shield ?? null) : null,
+          armor: char.equipment.armor ?? null,
+          helmet: char.equipment.helmet ?? null,
+          gloves: char.equipment.gloves ?? null,
+          boots: (char.equipment as any).boots ?? null,
+          necklace: (char.equipment as any).necklace ?? null,
+          ring1: existingRing1 ?? legacyAccessory ?? null,
+          ring2: existingRing2 ?? (existingRing1 ? legacyAccessory : null) ?? null,
+          relic: canUseRelic ? ((char.equipment as any).relic ?? null) : null,
+          offhand: canUseOffhand ? ((char.equipment as any).offhand ?? null) : null,
+        };
+        return { ...char, color: char.color || '#888888', equipment: migratedEquipment };
+      });
+      
+      const migratedData: GameData = {
+        ...loadedData,
+        party: migratedParty,
+        equipmentInventory: loadedData.equipmentInventory || [],
+        potionInventory: loadedData.potionInventory || [],
+      };
+      
+      setGame(migratedData);
+      saveMutation.mutate({ data: migratedData, lastSavedAt: new Date().toISOString() });
+    }
+  }, [game, serverState, saveMutation]);
+
+  // Smooth movement interpolation animation loop - runs continuously
+  useEffect(() => {
+    const INTERPOLATION_SPEED = 25; // Tiles per second - much faster for smoother movement
     let animationId: number;
     let lastTime = performance.now();
     
     const animate = (time: number) => {
-      const deltaTime = (time - lastTime) / 1000; // Convert to seconds
+      const deltaTime = Math.min((time - lastTime) / 1000, 0.1); // Cap delta at 100ms to prevent jumps
       lastTime = time;
       
       const current = visualPosRef.current;
@@ -252,13 +350,14 @@ export default function Game() {
       const dy = target.y - current.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance > 0.01) {
-        // Move toward target at constant speed
+      if (distance > 0.001) {
+        // Smooth easing function (ease-out)
         const moveAmount = Math.min(distance, INTERPOLATION_SPEED * deltaTime);
-        const ratio = moveAmount / distance;
+        const t = moveAmount / distance;
+        const smoothT = t * (2 - t); // Ease-out curve
         
-        const newX = current.x + dx * ratio;
-        const newY = current.y + dy * ratio;
+        const newX = current.x + dx * smoothT;
+        const newY = current.y + dy * smoothT;
         
         visualPosRef.current = { x: newX, y: newY };
         setVisualPos({ x: newX, y: newY });
@@ -274,8 +373,9 @@ export default function Game() {
     };
     
     animationId = requestAnimationFrame(animate);
+    
     return () => cancelAnimationFrame(animationId);
-  }, []);
+  }, []); // Run once, animate continuously
 
   const log = useCallback((msg: string) => {
     setLogs(prev => [msg, ...prev].slice(0, 5));
@@ -301,10 +401,12 @@ export default function Game() {
       return;
     }
 
-    setGame(prev => prev ? ({ ...prev, x: nx, y: ny }) : null);
+    const newGame = currentGame ? { ...currentGame, x: nx, y: ny } : null;
+    setGame(newGame);
     
     // Update target position for smooth interpolation
     targetPosRef.current = { x: nx, y: ny };
+    // Auto-save on first move disabled for plain main menu revert
 
     // Check for ladder tiles and show prompt
     if (tile === TILE_LADDER_DOWN) {
@@ -346,10 +448,10 @@ export default function Game() {
         defending: false 
       });
       
-      // Trigger combat transition animation
+      // Trigger combat transition animation - set fullscreen immediately to avoid layout collapse
+      setIsCombatFullscreen(true);
       setCombatTransition('entering');
       setTimeout(() => {
-        setIsCombatFullscreen(true);
         setCombatTransition('active');
       }, 650); // Dramatic transition with animations
       
@@ -424,11 +526,7 @@ export default function Game() {
   }, []);
 
   // Movement controls - using held-key tracking for smooth, responsive input
-  // Single keypress = immediate move, held key = continuous movement at MOVE_DELAY intervals
   const heldKeys = useRef<Set<string>>(new Set());
-  const lastMoveTime = useRef<number>(0);
-  const MOVE_DELAY = 100; // ms between moves when holding key (faster movement)
-  const INITIAL_DELAY = 120; // ms before continuous movement starts
   const keyPressTime = useRef<Map<string, number>>(new Map());
   
   // Movement execution helper
@@ -465,7 +563,6 @@ export default function Game() {
         heldKeys.current.add(key);
         keyPressTime.current.set(key, performance.now());
         executeMovement(key);
-        lastMoveTime.current = performance.now();
       }
     };
     
@@ -487,19 +584,32 @@ export default function Game() {
   // Animation frame loop for continuous movement when key is held
   useEffect(() => {
     let animationId: number;
+    const rotationKeys = ['arrowleft', 'arrowright', 'a', 'd'];
+    const movementKeys = ['arrowup', 'arrowdown', 'w', 's'];
     
     const tick = (time: number) => {
       const g = gameRef.current;
       if (g && !combatActiveRef.current && heldKeys.current.size > 0) {
-        // Find the first held movement key that's been held long enough for continuous movement
+        // Process rotation keys instantly (no delay)
         for (const key of Array.from(heldKeys.current)) {
-          const pressTime = keyPressTime.current.get(key);
-          if (pressTime && time - pressTime >= INITIAL_DELAY) {
-            // Key held long enough - check if enough time passed since last move
-            if (time - lastMoveTime.current >= MOVE_DELAY) {
+          if (rotationKeys.includes(key)) {
+            const pressTime = keyPressTime.current.get(key);
+            // Only rotate once per keypress (not continuous)
+            if (pressTime && time - pressTime < 16) {
               executeMovement(key);
-              lastMoveTime.current = time;
-              break; // Only process one movement per frame
+              keyPressTime.current.set(key, time - 16); // Prevent re-trigger
+            }
+          }
+        }
+        
+        // Process movement keys instantly - only update timestamp when actually moving
+        for (const key of Array.from(heldKeys.current)) {
+          if (movementKeys.includes(key)) {
+            const pressTime = keyPressTime.current.get(key);
+            // Only execute if enough time passed since last move (prevent excessive calls)
+            if (pressTime && time - pressTime >= 16) {
+              executeMovement(key);
+              keyPressTime.current.set(key, time);
             }
           }
         }
@@ -1381,22 +1491,9 @@ export default function Game() {
     <div 
       ref={gameContainerRef}
       tabIndex={-1}
-      className={`${isCombatFullscreen ? 'fixed inset-0 z-50' : 'h-screen w-screen'} flex items-center justify-center relative overflow-hidden outline-none bg-black transition-all duration-300`}>
-      {/* Stone wall background with grayscale filter */}
-      <div 
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `url(${dungeonWallBg})`,
-          backgroundSize: '400px',
-          backgroundRepeat: 'repeat',
-          backgroundPosition: 'center',
-          filter: 'grayscale(100%) brightness(0.35) contrast(1.1)',
-          transform: isCombatFullscreen ? 'scale(1.1)' : 'scale(1)',
-          transition: 'transform 300ms ease-out'
-        }} 
-      />
-      {/* Vignette effect - stronger during combat */}
-      <div className="absolute inset-0 pointer-events-none" style={{
+      className="h-screen w-screen flex items-center justify-center relative overflow-hidden outline-none bg-black">
+      {/* Vignette effect - stronger during combat, z-[5] keeps it behind battle content */}
+      <div className="absolute inset-0 pointer-events-none z-[5]" style={{
         background: isCombatFullscreen 
           ? 'radial-gradient(ellipse at center, transparent 10%, rgba(0,0,0,0.9) 100%)'
           : 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%)',
@@ -1483,57 +1580,7 @@ export default function Game() {
       
       <div className="w-full h-full p-0 flex relative z-10 transition-all duration-300">
         
-        {/* Monster Health Bars - Fixed at top center during combat fullscreen */}
-        {isCombatFullscreen && combatState.active && combatState.monsters.length > 0 && (
-          <div className="fixed top-0 left-72 right-80 z-[100] p-3 bg-gradient-to-b from-black/95 via-black/80 to-transparent">
-            <div className="flex flex-nowrap gap-2 justify-center overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-              {combatState.monsters.map((monster, idx) => {
-                const barWidth = combatState.monsters.length === 1 ? 'w-56' : combatState.monsters.length === 2 ? 'w-48' : 'w-44';
-                return (
-                  <div 
-                    key={monster.id}
-                    className={`flex-shrink-0 ${barWidth} px-2 py-1.5 rounded-lg border-2 cursor-pointer transition-all ${
-                      idx === combatState.targetIndex && monster.hp > 0
-                        ? 'border-yellow-400 bg-yellow-400/30 scale-105 shadow-lg shadow-yellow-400/30' 
-                        : 'border-amber-500/60 bg-black/90'
-                    } ${monster.hp <= 0 ? 'opacity-40' : ''}`}
-                    onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className={`text-xs font-bold truncate ${
-                        monster.hp <= 0 ? 'text-gray-500 line-through' : 'text-amber-300'
-                      }`}>
-                        {monster.name}
-                      </span>
-                      {idx === combatState.targetIndex && monster.hp > 0 && (
-                        <span className="text-yellow-400 text-xs flex-shrink-0">◀</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <div className="flex-1 h-2.5 bg-black/80 rounded-full overflow-hidden border border-white/20">
-                        <div 
-                          className="h-full transition-all duration-300"
-                          style={{ 
-                            width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
-                            backgroundColor: monster.color || '#f59e0b'
-                          }}
-                        />
-                      </div>
-                      <span className="text-xs text-white font-semibold flex-shrink-0 min-w-[40px] text-right">
-                        {monster.hp}/{monster.maxHp}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        
-        {/* LEFT COMBAT PANEL - Empty placeholder to maintain layout (will add content later) */}
-        {isCombatFullscreen && (
-          <div className="w-72 h-full" />
-        )}
+        {/* Monster health bars and left combat spacer removed - BattleView is now a fixed fullscreen overlay with its own UI */}
 
         {/* CENTER - Main game area (monsters during combat) */}
         <div className="flex-1 h-full">
@@ -1834,40 +1881,22 @@ export default function Game() {
         <div className="w-full h-full order-1 lg:order-2">
           <RetroCard className="h-full rounded-none border-0 bg-transparent p-0">
             <div className="relative w-full h-full bg-black overflow-hidden">
-              {/* Always show dungeon view as background */}
-              {/* Base dungeon rendering (hidden only when post-processing is active AND canvas is ready) */}
-              <DungeonView 
-                gameData={game} 
-                className={`w-full h-full ${postProcessing && dungeonCanvasRef ? 'invisible' : ''}`}
-                renderWidth={RESOLUTION_PRESETS[graphicsQuality].width}
-                renderHeight={RESOLUTION_PRESETS[graphicsQuality].height}
-                visualX={visualPos.x}
-                visualY={visualPos.y}
-                onCanvasRef={setDungeonCanvasRef}
-              />
+              {/* Performance Monitor - only in development */}
+              <PerformanceMonitor position="top-left" />
               
-              {/* WebGL post-processing overlay with effects */}
-              {postProcessing && dungeonCanvasRef && (
-                <WebGLPostProcess
-                  sourceCanvas={dungeonCanvasRef}
-                  width={RESOLUTION_PRESETS[graphicsQuality].width}
-                  height={RESOLUTION_PRESETS[graphicsQuality].height}
-                  className="absolute inset-0 w-full h-full rounded-lg"
-                  effects={{
-                    scanlines: true,
-                    bloom: true,
-                    vignette: true,
-                    colorGrading: true,
-                    crt: false,
-                    chromatic: true
-                  }}
-                  onInitFailed={() => {
-                    console.warn("WebGL post-processing failed to initialize, falling back to canvas");
-                    setPostProcessing(false);
-                  }}
-                />
+              {/* Dungeon view - WebGL for 10x performance - hide during combat */}
+              {!combatState.active && (
+                <div className="absolute inset-0 z-0">
+                  <WebGLDungeonView
+                    gameData={game}
+                    visualX={visualPos.x}
+                    visualY={visualPos.y}
+                  />
+                </div>
               )}
               
+              
+
               {/* Mini Map in top left (toggle with M key) - hide during combat fullscreen */}
               {showMiniMap && !isCombatFullscreen && (() => {
                 const mapSize = 11; // Odd number so player is always centered
@@ -1930,149 +1959,7 @@ export default function Game() {
                 );
               })()}
               
-              {/* Dragon Quest-style Battle View - fullscreen combat */}
-              {combatState.active && combatState.monsters.length > 0 && isCombatFullscreen && (
-                <div className="absolute inset-0 z-50">
-                  <BattleView
-                    game={game}
-                    combatState={combatState}
-                    onTargetSelect={(idx) => setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                    onAbilityUse={useAbility}
-                    onFlee={handleRun}
-                    getAbilitiesForJob={getAbilitiesForJob}
-                    getEffectiveStats={getEffectiveStats}
-                    monsterAnimations={monsterAnimations}
-                    logs={logs}
-                  />
-                </div>
-              )}
-              
-              {/* Classic overlay combat for non-fullscreen mode */}
-              {combatState.active && combatState.monsters.length > 0 && !isCombatFullscreen && (
-                <>
-                  {/* Atmospheric overlay for combat - radial vignette that darkens edges */}
-                  <div 
-                    className="absolute inset-0 z-[5] pointer-events-none animate-in fade-in duration-500"
-                    style={{
-                      background: 'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.6) 100%)'
-                    }}
-                  />
-                  
-                  {/* Monster display - single row for up to 3 monsters */}
-                  <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none pb-10">
-                    <div className="relative w-full flex flex-col justify-center items-center animate-in fade-in zoom-in duration-300">
-                      <div className="flex items-end justify-center z-20" style={{ gap: '4px' }}>
-                        {combatState.monsters.slice(0, 3).map((monster, idx) => {
-                          const getMonsterSize = () => {
-                            if (combatState.monsters.length === 1) return 'w-56 h-56';
-                            if (combatState.monsters.length === 2) return 'w-48 h-48';
-                            return 'w-40 h-40';
-                          };
-                          return (
-                            <div 
-                              key={monster.id} 
-                              className={`relative cursor-pointer transition-all duration-200 ${
-                                monster.hp <= 0 ? 'opacity-40 grayscale' : ''
-                              } ${idx === combatState.targetIndex && monster.hp > 0 ? 'scale-110 z-30' : 'scale-100'}`}
-                              onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                              style={{ pointerEvents: 'auto', filter: monster.hp <= 0 ? 'brightness(0.6)' : 'none' }}
-                            >
-                              {idx === combatState.targetIndex && monster.hp > 0 && (
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce z-40">
-                                  <ChevronDown className="w-6 h-6" />
-                                </div>
-                              )}
-                              {monster.image ? (
-                                <>
-                                  <TransparentMonster 
-                                    src={monster.image} 
-                                    alt={monster.name} 
-                                    className={`object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.9)] ${getMonsterSize()}`}
-                                    animationState={monsterAnimations[idx] || 'idle'}
-                                    isFlying={isFlying(monster.name)}
-                                  />
-                                  <div 
-                                    className={`absolute bottom-0 left-1/2 rounded-[50%] bg-black/60 blur-md ${
-                                      combatState.monsters.length === 1 ? 'w-44 h-6' :
-                                        combatState.monsters.length === 2 ? 'w-36 h-5' : 'w-32 h-5'
-                                    }`}
-                                    style={{ transform: 'translateX(-50%) translateY(8px)' }}
-                                  />
-                                </>
-                              ) : (
-                                <Skull className={`text-red-500 drop-shadow-lg ${
-                                  combatState.monsters.length === 1 ? 'w-44 h-44' :
-                                    combatState.monsters.length === 2 ? 'w-36 h-36' : 'w-32 h-32'
-                                }`} />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Combat UI overlay at bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2">
-                    <div className="space-y-2">
-                      {/* All Monsters HP bars */}
-                      <div className="flex flex-wrap gap-1">
-                        {combatState.monsters.map((monster, idx) => (
-                          <div 
-                            key={monster.id} 
-                            className={`flex-1 min-w-[100px] p-1 rounded border cursor-pointer transition-all ${
-                              idx === combatState.targetIndex ? 'border-yellow-400 bg-yellow-400/10' : 'border-primary/30 bg-black/40'
-                            } ${monster.hp <= 0 ? 'opacity-50' : ''}`}
-                            onClick={() => monster.hp > 0 && setCombatState(prev => ({ ...prev, targetIndex: idx }))}
-                          >
-                            <h2 className="font-pixel text-destructive text-[10px] truncate">{monster.name}</h2>
-                            <div className="h-1.5 bg-black/50 rounded-full overflow-hidden mt-0.5">
-                              <div 
-                                className="h-full transition-all"
-                                style={{ 
-                                  width: `${Math.max(0, (monster.hp / monster.maxHp) * 100)}%`,
-                                  backgroundColor: monster.color || '#ef4444'
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Current Character Turn */}
-                      {game.party[combatState.currentCharIndex] && game.party[combatState.currentCharIndex].hp > 0 && (
-                        <div className="bg-black/60 p-1.5 rounded border border-primary/30">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-pixel text-[10px] text-primary">
-                              {game.party[combatState.currentCharIndex].name}'s Turn
-                            </span>
-                            <span className="font-retro text-[10px] text-blue-400">
-                              MP: {game.party[combatState.currentCharIndex].mp}/{getEffectiveStats(game.party[combatState.currentCharIndex]).maxMp}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {getAbilitiesForJob(game.party[combatState.currentCharIndex].job).map((ability) => (
-                              <RetroButton 
-                                key={ability.id}
-                                onClick={() => useAbility(ability, combatState.currentCharIndex)} 
-                                className="px-2 py-0.5 text-[10px]"
-                                disabled={ability.mpCost > game.party[combatState.currentCharIndex].mp}
-                                data-testid={`button-${ability.id}`}
-                              >
-                                {ability.name}
-                                {ability.mpCost > 0 && <span className="ml-1 text-blue-300">({ability.mpCost})</span>}
-                              </RetroButton>
-                            ))}
-                            <RetroButton onClick={handleRun} variant="ghost" className="px-2 py-0.5 text-[10px]" data-testid="button-run">
-                              RUN
-                            </RetroButton>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              {/* BattleView moved to fixed overlay outside flex layout - see below */}
             </div>
             
             </RetroCard>
@@ -2122,118 +2009,90 @@ export default function Game() {
               {showSettings && (
                 <div className="absolute bottom-full right-0 mb-2 bg-slate-900/95 backdrop-blur-sm border border-amber-600/30 rounded-lg p-3 min-w-[180px] shadow-xl z-50">
                   <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">QUALITY</div>
-                  {(['high', 'medium', 'low'] as GraphicsQuality[]).map((quality) => (
-                    <button
-                      key={quality}
-                      onClick={() => {
-                        setGraphicsQuality(quality);
-                        setShowSettings(false);
-                      }}
-                      className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                        graphicsQuality === quality 
-                          ? 'bg-amber-600/50 text-amber-200' 
-                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                      }`}
-                      data-testid={`button-quality-${quality}`}
-                    >
-                      {RESOLUTION_PRESETS[quality].label}
-                      {graphicsQuality === quality && <span className="ml-2 text-amber-400">✓</span>}
-                    </button>
-                  ))}
-                  
-                  <div className="border-t border-amber-600/20 my-2 pt-2">
-                    <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">EFFECTS</div>
-                    <button
-                      onClick={() => setPostProcessing(!postProcessing)}
-                      className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                        postProcessing 
-                          ? 'bg-cyan-600/50 text-cyan-200' 
-                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                      }`}
-                      data-testid="button-toggle-postprocessing"
-                    >
-                      WebGL Effects
-                      {postProcessing && <span className="ml-2 text-cyan-400">✓</span>}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        )}
-        </div>
-        
-        {/* RIGHT SIDEBAR - Battle Log during combat fullscreen */}
-        {isCombatFullscreen && (
-          <div className="w-80 min-h-screen bg-black/90 border-l border-primary/30 flex flex-col p-2 z-30">
-            <div className="bg-black/60 rounded border border-white/10 p-3 flex-1 overflow-hidden flex flex-col min-h-0">
-              <div className="font-pixel text-sm text-primary mb-2">BATTLE LOG</div>
-              <div className="flex-1 space-y-1 text-sm overflow-y-auto min-h-0" style={{ scrollbarWidth: 'thin' }}>
-                {logs.slice(0, 50).map((msg, i) => (
-                  <div key={i} className={`py-0.5 ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}`} style={{ opacity: 1 - i * 0.02 }}>
-                    {msg}
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Settings and Fullscreen buttons */}
-            <div className="flex gap-2 mt-2 flex-shrink-0">
-              <button
-                onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                  } else {
-                    document.documentElement.requestFullscreen();
-                  }
-                }}
-                className="flex-1 bg-slate-800/90 hover:bg-slate-700 border border-amber-600/30 rounded-lg p-2 text-amber-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2"
-                data-testid="button-fullscreen-combat"
-                title={document.fullscreenElement ? "Exit Fullscreen (F11)" : "Fullscreen (F11)"}
-              >
-                {document.fullscreenElement ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                <span className="text-xs">Screen</span>
-              </button>
-              
-              <div className="relative flex-1">
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="w-full bg-slate-800/90 hover:bg-slate-700 border border-amber-600/30 rounded-lg p-2 text-amber-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2"
-                  data-testid="button-settings-combat"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="text-xs">Graphics</span>
-                </button>
-                
-                {showSettings && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-slate-900/95 backdrop-blur-sm border border-amber-600/30 rounded-lg p-3 min-w-[160px] shadow-xl z-50">
-                    <div className="text-xs text-amber-400 font-bold mb-2 tracking-wider">QUALITY</div>
-                    {(['high', 'medium', 'low'] as GraphicsQuality[]).map((quality) => (
+                  <div className="mb-3">
+                    <div className="text-xs text-amber-200 mb-1 font-bold">CLASSIC (4:3)</div>
+                    {(['vga', 'svga', 'xga', 'sxga'] as GraphicsQuality[]).map((quality) => (
                       <button
                         key={quality}
                         onClick={() => {
                           setGraphicsQuality(quality);
                           setShowSettings(false);
                         }}
-                        className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
                           graphicsQuality === quality 
                             ? 'bg-amber-600/50 text-amber-200' 
                             : 'text-gray-300 hover:bg-white/10 hover:text-white'
                         }`}
-                        data-testid={`button-quality-combat-${quality}`}
                       >
-                        {RESOLUTION_PRESETS[quality].label}
-                        {graphicsQuality === quality && <span className="ml-2 text-amber-400">✓</span>}
+                        <div className="flex items-center justify-between">
+                          <span>{RESOLUTION_PRESETS[quality].label}</span>
+                          {graphicsQuality === quality && <span className="text-amber-400">✓</span>}
+                        </div>
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
+                  <div className="mb-3">
+                    <div className="text-xs text-amber-200 mb-1 font-bold">WIDESCREEN (16:9)</div>
+                    {(['widescreen', 'cinema', 'hd'] as GraphicsQuality[]).map((quality) => (
+                      <button
+                        key={quality}
+                        onClick={() => {
+                          setGraphicsQuality(quality);
+                          setShowSettings(false);
+                        }}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
+                          graphicsQuality === quality 
+                            ? 'bg-amber-600/50 text-amber-200' 
+                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{RESOLUTION_PRESETS[quality].label}</span>
+                          {graphicsQuality === quality && <span className="text-amber-400">✓</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+          
+          {/* Return to Main Menu button */}
+          <RetroButton
+            onClick={() => setShowReturnDialog(true)}
+            variant="danger"
+            className="w-full"
+            data-testid="button-return-to-menu"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-xs">Return to Menu</span>
+          </RetroButton>
           </div>
+        </div>
         )}
+        </div>
+
+        {/* Right sidebar removed - BattleView is now a fixed fullscreen overlay with its own combat log */}
       </div>
+      
+      {/* Dragon Quest-style Battle View - fixed overlay covering entire screen */}
+      {combatState.active && combatState.monsters.length > 0 && (
+        <div className="fixed inset-0 z-[60]">
+          <BattleErrorBoundary onError={handleRun}>
+            <BattleView
+              game={game}
+              combatState={combatState}
+              onTargetSelect={(idx) => setCombatState(prev => ({ ...prev, targetIndex: idx }))}
+              onAbilityUse={useAbility}
+              onFlee={handleRun}
+              getAbilitiesForJob={getAbilitiesForJob}
+              getEffectiveStats={getEffectiveStats}
+              monsterAnimations={monsterAnimations}
+              logs={logs}
+            />
+          </BattleErrorBoundary>
+        </div>
+      )}
       
       {/* Help Modal - Equipment Index */}
       {showHelp && (
@@ -3138,6 +2997,32 @@ export default function Game() {
               <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                 <div className="text-xs text-red-400 mb-2">COMBAT</div>
                 <div className="flex gap-2 flex-wrap">
+                  <MonsterSpawner
+                    disabled={!game || combatState.active}
+                    onSpawnMonster={(monster) => {
+                      if (game && !combatState.active) {
+                        // Create a fresh copy of the monster with a new ID
+                        const spawnMonster: Monster = {
+                          ...monster,
+                          id: crypto.randomUUID(),
+                          hp: monster.maxHp,
+                          mp: monster.maxMp
+                        };
+                        setCombatState({
+                          active: true,
+                          monsters: [spawnMonster],
+                          targetIndex: 0,
+                          turn: 0,
+                          currentCharIndex: 0,
+                          turnOrder: [],
+                          turnOrderPosition: 0,
+                          defending: false
+                        });
+                        setIsCombatFullscreen(true);
+                        log(`Spawned ${monster.name} for testing!`);
+                      }
+                    }}
+                  />
                   <button
                     onClick={() => {
                       if (game && !combatState.active) {
@@ -3205,6 +3090,32 @@ export default function Game() {
           </div>
         </div>
       )}
+      
+      {/* Return to Main Menu Confirmation Dialog */}
+      <AlertDialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+        <AlertDialogContent className="bg-slate-900 border-amber-600/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-amber-400 font-pixel">RETURN TO MAIN MENU?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              All unsaved progress will be lost. Are you sure you want to return to the main menu?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-700 text-slate-300 hover:bg-slate-600 border-slate-600">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                logout();
+                setShowReturnDialog(false);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white border-red-700"
+            >
+              Return to Menu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

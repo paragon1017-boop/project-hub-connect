@@ -11,6 +11,7 @@ export const gameStates = pgTable("game_states", {
   userId: text("user_id").notNull(), // Links to auth.users.id
   data: jsonb("data").notNull(), // Stores the entire game state (party, dungeon, etc.)
   lastSavedAt: text("last_saved_at").notNull(),
+  viewportScale: text("viewport_scale").notNull().default("0.7"), // User's preferred viewport scale (0.5-1.0)
 });
 
 export const gameStatesRelations = relations(gameStates, ({ one }) => ({
@@ -23,6 +24,7 @@ export const gameStatesRelations = relations(gameStates, ({ one }) => ({
 export const insertGameStateSchema = createInsertSchema(gameStates).pick({
   data: true,
   lastSavedAt: true,
+  viewportScale: true,
 });
 
 export type GameState = typeof gameStates.$inferSelect;

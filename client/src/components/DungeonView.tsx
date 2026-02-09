@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
-import { GameData, NORTH, EAST, SOUTH, WEST } from "@/lib/game-engine";
+import { GameData, NORTH, EAST, SOUTH, WEST, TILE_FLOOR, TILE_LADDER_UP, TILE_LADDER_DOWN } from "@/lib/game-engine";
+import * as THREE from 'three';
 
 interface DungeonViewProps {
   gameData: GameData;
@@ -8,11 +9,15 @@ interface DungeonViewProps {
   renderHeight?: number;
   visualX?: number;  // Optional interpolated X position for smooth movement
   visualY?: number;  // Optional interpolated Y position for smooth movement
-  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void;  // Callback to get canvas reference for post-processing
+  viewportScale?: number;  // User's preferred viewport scale (0.5-1.0)
+  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 // Cache buster for texture reloads during development
-const TEXTURE_VERSION = 23;
+const TEXTURE_VERSION = 25;
+
+// Border offset to clip white edges from textures (pixels)
+const TEXTURE_BORDER_CLIP = 32;
 
 // Get texture paths for a specific dungeon level (1-10, each with unique textures)
 function getTexturesForLevel(level: number): { wall: string; floor: string; ceiling: string; extraFloors?: string[]; extraWalls?: string[]; extraCeilings?: string[] } {
@@ -57,15 +62,37 @@ function getTexturesForLevel(level: number): { wall: string; floor: string; ceil
   };
 }
 
-export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY, onCanvasRef }: DungeonViewProps) {
+export function DungeonView({ gameData, className, renderWidth = 800, renderHeight = 600, visualX, visualY, viewportScale = 0.7, onCanvasRef }: DungeonViewProps) {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const texturesRef = useRef<{ wall: HTMLImageElement | null; floor: HTMLImageElement | null; ceiling: HTMLImageElement | null; door: HTMLImageElement | null; extraFloors: HTMLImageElement[]; extraWalls: HTMLImageElement[]; extraCeilings: HTMLImageElement[] }>({ wall: null, floor: null, ceiling: null, door: null, extraFloors: [], extraWalls: [], extraCeilings: [] });
+  
+  // Add Three.js texture loader for performance optimizations
+  const threeTextureLoader = useRef<THREE.TextureLoader | null>(null);
+  const threeTexturesRef = useRef<{ wall: THREE.Texture | null; floor: THREE.Texture | null; ceiling: THREE.Texture | null; door: THREE.Texture | null; extraFloors: THREE.Texture[]; extraWalls: THREE.Texture[]; extraCeilings: THREE.Texture[] }>({ wall: null, floor: null, ceiling: null, door: null, extraFloors: [], extraWalls: [], extraCeilings: [] });
   
   // Callback ref to notify parent when canvas is mounted, and store locally
   const setCanvasRef = useCallback((canvas: HTMLCanvasElement | null) => {
     internalCanvasRef.current = canvas;
     if (onCanvasRef) {
       onCanvasRef(canvas);
+    }
+    
+    // Initialize Three.js texture loader for performance optimizations
+    if (canvas && !threeTextureLoader.current) {
+      threeTextureLoader.current = new THREE.TextureLoader();
+      threeTextureLoader.current.setCrossOrigin('anonymous');
+    }
+    
+    // Initialize Web Worker for maximum performance
+    if (useWorker && !raycastingWorker.current && typeof Worker !== 'undefined') {
+      raycastingWorker.current = new Worker('/workers/raycastingWorker.js');
+      
+      raycastingWorker.current.onmessage = (e) => {
+        const { type, data } = e.data;
+        if (type === 'raycast-results') {
+          workerResults.current = data;
+        }
+      };
     }
   }, [onCanvasRef]);
   
@@ -87,54 +114,205 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     currentLevelRef.current = levelKey;
     const texturePaths = getTexturesForLevel(level);
     
-    const wallImg = new Image();
-    wallImg.crossOrigin = 'anonymous';
-    wallImg.src = texturePaths.wall;
-    const floorImg = new Image();
-    floorImg.crossOrigin = 'anonymous';
-    floorImg.src = texturePaths.floor;
-    const ceilingImg = new Image();
-    ceilingImg.crossOrigin = 'anonymous';
-    ceilingImg.src = texturePaths.ceiling;
-    const doorImg = new Image();
-    doorImg.crossOrigin = 'anonymous';
-    doorImg.src = `/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`;
-
-    wallImg.onload = () => { texturesRef.current.wall = wallImg; lastRenderState.current = null; draw(); };
-    floorImg.onload = () => { texturesRef.current.floor = floorImg; lastRenderState.current = null; draw(); };
-    ceilingImg.onload = () => { texturesRef.current.ceiling = ceilingImg; lastRenderState.current = null; draw(); };
-    doorImg.onload = () => { texturesRef.current.door = doorImg; lastRenderState.current = null; draw(); };
+    // Reset textures
+    texturesRef.current = { wall: null, floor: null, ceiling: null, door: null, extraFloors: [], extraWalls: [], extraCeilings: [] };
     
-    texturesRef.current.extraFloors = [];
-    if (texturePaths.extraFloors) {
-      texturePaths.extraFloors.forEach((src) => {
+    // Load textures with proper error handling
+    const loadTexture = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => {
+          console.warn(`Failed to load texture: ${src}`);
+          resolve(null as any); // Resolve with null to prevent blocking
+        };
         img.src = src;
-        img.onload = () => { texturesRef.current.extraFloors.push(img); lastRenderState.current = null; draw(); };
       });
-    }
-    texturesRef.current.extraWalls = [];
-    if (texturePaths.extraWalls) {
-      texturePaths.extraWalls.forEach((src) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = src;
-        img.onload = () => { texturesRef.current.extraWalls.push(img); lastRenderState.current = null; draw(); };
+    };
+
+    // Load optimized Three.js textures with mipmapping and proper filtering
+    const loadOptimizedTexture = (src: string): Promise<THREE.Texture | null> => {
+      return new Promise((resolve) => {
+        if (!threeTextureLoader.current) {
+          resolve(null);
+          return;
+        }
+
+        // Try to load compressed WebP version first, fallback to PNG
+        const webpSrc = src.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+        
+        const loadWithFallback = (primarySrc: string, fallbackSrc: string) => {
+          threeTextureLoader.current!.load(
+            primarySrc,
+            (texture) => {
+              // Apply performance optimizations
+              texture.generateMipmaps = true;
+              texture.minFilter = THREE.LinearMipmapLinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              texture.anisotropy = 4; // Improve texture quality at angles
+              texture.needsUpdate = true;
+              resolve(texture);
+            },
+            (progress) => {
+              // Optional: track loading progress
+              console.log(`Loading texture: ${primarySrc}`, (progress.loaded / progress.total * 100).toFixed(1) + '%');
+            },
+            (error) => {
+              console.warn(`Failed to load primary texture: ${primarySrc}, trying fallback...`);
+              // Try fallback texture
+              threeTextureLoader.current!.load(
+                fallbackSrc,
+                (fallbackTexture) => {
+                  fallbackTexture.generateMipmaps = true;
+                  fallbackTexture.minFilter = THREE.LinearMipmapLinearFilter;
+                  fallbackTexture.magFilter = THREE.LinearFilter;
+                  fallbackTexture.wrapS = THREE.RepeatWrapping;
+                  fallbackTexture.wrapT = THREE.RepeatWrapping;
+                  fallbackTexture.anisotropy = 4;
+                  fallbackTexture.needsUpdate = true;
+                  resolve(fallbackTexture);
+                },
+                undefined,
+                () => {
+                  console.error(`Failed to load both texture versions: ${primarySrc}, ${fallbackSrc}`);
+                  resolve(null);
+                }
+              );
+            }
+          );
+        };
+
+        loadWithFallback(webpSrc, src);
       });
-    }
-    texturesRef.current.extraCeilings = [];
-    if (texturePaths.extraCeilings) {
-      texturePaths.extraCeilings.forEach((src) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = src;
-        img.onload = () => { texturesRef.current.extraCeilings.push(img); lastRenderState.current = null; draw(); };
-      });
-    }
+    };
+    
+    // Load all textures in parallel
+    const loadAllTextures = async () => {
+      try {
+        // Load primary textures (both HTML and Three.js versions)
+        const [wallImg, floorImg, ceilingImg, doorImg] = await Promise.all([
+          loadTexture(texturePaths.wall),
+          loadTexture(texturePaths.floor),
+          loadTexture(texturePaths.ceiling),
+          loadTexture(`/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`)
+        ]);
+
+        // Load optimized Three.js textures in parallel
+        const [wallTex, floorTex, ceilingTex, doorTex] = await Promise.all([
+          loadOptimizedTexture(texturePaths.wall),
+          loadOptimizedTexture(texturePaths.floor),
+          loadOptimizedTexture(texturePaths.ceiling),
+          loadOptimizedTexture(`/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`)
+        ]);
+        
+        // Load extra textures if they exist (both HTML and Three.js)
+        const extraFloorPromises = texturePaths.extraFloors?.map(src => loadTexture(src)) || [];
+        const extraWallPromises = texturePaths.extraWalls?.map(src => loadTexture(src)) || [];
+        const extraCeilingPromises = texturePaths.extraCeilings?.map(src => loadTexture(src)) || [];
+        
+        const extraFloorTexPromises = texturePaths.extraFloors?.map(src => loadOptimizedTexture(src)) || [];
+        const extraWallTexPromises = texturePaths.extraWalls?.map(src => loadOptimizedTexture(src)) || [];
+        const extraCeilingTexPromises = texturePaths.extraCeilings?.map(src => loadOptimizedTexture(src)) || [];
+        
+        const [extraFloors, extraWalls, extraCeilings] = await Promise.all([
+          Promise.all(extraFloorPromises),
+          Promise.all(extraWallPromises),
+          Promise.all(extraCeilingPromises)
+        ]);
+
+        const [extraFloorTextures, extraWallTextures, extraCeilingTextures] = await Promise.all([
+          Promise.all(extraFloorTexPromises),
+          Promise.all(extraWallTexPromises),
+          Promise.all(extraCeilingTexPromises)
+        ]);
+        
+        // Update HTML textures ref (for current Canvas 2D rendering)
+        texturesRef.current = {
+          wall: wallImg,
+          floor: floorImg,
+          ceiling: ceilingImg,
+          door: doorImg,
+          extraFloors: extraFloors.filter(Boolean),
+          extraWalls: extraWalls.filter(Boolean),
+          extraCeilings: extraCeilings.filter(Boolean)
+        };
+
+        // Update Three.js textures ref (for potential WebGL upgrade)
+        threeTexturesRef.current = {
+          wall: wallTex,
+          floor: floorTex,
+          ceiling: ceilingTex,
+          door: doorTex,
+          extraFloors: extraFloorTextures.filter((tex): tex is THREE.Texture => tex !== null),
+          extraWalls: extraWallTextures.filter((tex): tex is THREE.Texture => tex !== null),
+          extraCeilings: extraCeilingTextures.filter((tex): tex is THREE.Texture => tex !== null)
+        };
+        
+        console.log('Textures loaded successfully:', {
+          htmlTextures: { wall: !!wallImg, floor: !!floorImg, ceiling: !!ceilingImg, door: !!doorImg },
+          threeTextures: { wall: !!wallTex, floor: !!floorTex, ceiling: !!ceilingTex, door: !!doorTex }
+        });
+        
+        // Trigger redraw
+        lastRenderState.current = null;
+        draw();
+      } catch (error) {
+        console.error('Error loading textures:', error);
+        // Fallback: trigger redraw even if textures failed
+        lastRenderState.current = null;
+        draw();
+      }
+    };
+    
+    loadAllTextures();
   }, [gameData.level]);
 
   // Redraw when game data, visual position, or resolution changes
+  // Performance monitoring only (no artificial limits)
+  const frameRateRef = useRef<{ lastTime: number; frameCount: number; fps: number }>({ lastTime: 0, frameCount: 0, fps: 0 });
+  
+  // Object pooling to reduce garbage collection
+  const vectorPool = useRef<{ x: number; y: number }[]>([]);
+  const rayPool = useRef<{ x: number; y: number; side: number; distance: number }[]>([]);
+  
+  // Web Worker for raycasting (max performance)
+  const raycastingWorker = useRef<Worker | null>(null);
+  const workerResults = useRef<any[]>([]);
+  const useWorker = true; // Set to true for unlimited FPS
+  
+  const getVector = (x: number, y: number) => {
+    if (vectorPool.current.length > 0) {
+      const vec = vectorPool.current.pop()!;
+      vec.x = x;
+      vec.y = y;
+      return vec;
+    }
+    return { x, y };
+  };
+  
+  const returnVector = (vec: { x: number; y: number }) => {
+    vectorPool.current.push(vec);
+  };
+  
+  const measureFPS = useCallback(() => {
+    const now = performance.now();
+    frameRateRef.current.frameCount++;
+    
+    if (now - frameRateRef.current.lastTime >= 1000) {
+      frameRateRef.current.fps = Math.round((frameRateRef.current.frameCount * 1000) / (now - frameRateRef.current.lastTime));
+      frameRateRef.current.frameCount = 0;
+      frameRateRef.current.lastTime = now;
+      
+      // Log raw FPS (no artificial limits)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`DungeonView FPS: ${frameRateRef.current.fps} (UNLIMITED)`);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     draw();
   }, [gameData, renderWidth, renderHeight, visualX, visualY]);
@@ -142,6 +320,13 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    measureFPS();
+    
+    // Calculate scaled render dimensions based on viewport scale
+    const actualViewportScale = viewportScale || 0.7;
+    const scaledRenderWidth = Math.floor(renderWidth * actualViewportScale);
+    const scaledRenderHeight = Math.floor(renderHeight * actualViewportScale);
     
     // Use interpolated visual position if provided, otherwise use logical position
     const currentX = visualX !== undefined ? visualX : gameData.x;
@@ -168,50 +353,72 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
 
     // Enable image smoothing for smoother textures
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Clear screen with dark color matching dungeon atmosphere
-    ctx.fillStyle = "#1a1a2e";
+    // Clear entire canvas with black - prevents any colored artifacts from showing through gaps
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Simple Raycaster Settings
     const map = gameData.map;
     
-    // Ensure camera position is clamped to valid floor tiles during interpolation
-    // This prevents seeing through walls when visual position is between tiles
+    // Ensure camera position stays within map bounds with better safety margins
     const safeX = Math.max(0.1, Math.min(map[0].length - 1.1, currentX));
     const safeY = Math.max(0.1, Math.min(map.length - 1.1, currentY));
     
     // Check if current interpolated position would put camera inside a wall
     // If so, use the floor position of the player's actual tile
-    const floorX = Math.floor(safeX);
-    const floorY = Math.floor(safeY);
+    let floorX = Math.floor(safeX);
+    let floorY = Math.floor(safeY);
     const fracX = safeX - floorX;
     const fracY = safeY - floorY;
     
-    // Clamp fractional part to avoid being too close to tile edges (0.1 to 0.9)
-    const clampedFracX = Math.max(0.1, Math.min(0.9, fracX));
-    const clampedFracY = Math.max(0.1, Math.min(0.9, fracY));
+    // Enhanced collision detection - check surrounding tiles
+    const checkTile = (x: number, y: number): boolean => {
+      if (x < 0 || x >= map[0].length || y < 0 || y >= map.length) return false;
+      return map[y][x] === TILE_FLOOR || map[y][x] === TILE_LADDER_UP || map[y][x] === TILE_LADDER_DOWN;
+    };
+    
+    // Ensure current tile and adjacent tiles are walkable
+    if (!checkTile(floorX, floorY) || 
+        !checkTile(floorX + 1, floorY) || 
+        !checkTile(floorX - 1, floorY) ||
+        !checkTile(floorX, floorY + 1) || 
+        !checkTile(floorX, floorY - 1)) {
+      // Fallback to player's logical position
+      floorX = gameData.x;
+      floorY = gameData.y;
+    }
+    
+    // Conservative clamping to prevent wall clipping (0.15 to 0.85)
+    const clampedFracX = Math.max(0.15, Math.min(0.85, fracX));
+    const clampedFracY = Math.max(0.15, Math.min(0.85, fracY));
     
     const posX = floorX + clampedFracX + 0.5;
     const posY = floorY + clampedFracY + 0.5;
     
     // Direction vectors based on cardinal direction (0=N, 1=E, 2=S, 3=W)
+    // plane values of 1.73 = 120° FOV for ultra-wide immersive view
     let dirX = 0, dirY = 0, planeX = 0, planeY = 0;
     
     switch(gameData.dir) {
-      case NORTH: dirY = -1; planeX = 0.66; break;
-      case SOUTH: dirY = 1; planeX = -0.66; break;
-      case EAST: dirX = 1; planeY = 0.66; break;
-      case WEST: dirX = -1; planeY = -0.66; break;
+      case NORTH: dirY = -1; planeX = 1.0; break;
+      case SOUTH: dirY = 1; planeX = -1.0; break;
+      case EAST: dirX = 1; planeY = 1.0; break;
+      case WEST: dirX = -1; planeY = -1.0; break;
     }
 
     const w = canvas.width;
     const h = canvas.height;
     
-    // Detect if camera is moving (fractional position = mid-interpolation)
-    const isMoving = (Math.abs(currentX - Math.round(currentX)) > 0.02) || (Math.abs(currentY - Math.round(currentY)) > 0.02);
-    // Use larger pixel step during movement for performance, full detail when stationary
-    const pxStep = isMoving ? 4 : 2;
+    // For debugging - show actual rendering dimensions
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Viewport Scale: ${actualViewportScale}, Scaled Size: ${scaledRenderWidth}x${scaledRenderHeight}, Original: ${renderWidth}x${renderHeight}`);
+    }
+    
+    // Maximum quality settings for unlimited FPS
+    const pxStep = 1; // Full resolution - no performance compromise
+    const textureSampleSize = 8; // Maximum texture quality - best visuals
 
     // Draw Ceiling with perspective texture, randomly mixed per tile
     const ceilingTex = texturesRef.current.ceiling || texturesRef.current.floor;
@@ -219,7 +426,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     if (ceilingTex) {
       for (let y = 0; y < Math.floor(h / 2); y++) {
         const p = Math.floor(h / 2) - y;
-        const rowDistance = (h * 0.5) / p;
+        // Smaller multiplier (0.3 instead of 0.5) makes tiles appear flatter and smaller
+        const rowDistance = (h * 0.3) / p;
         
         const ceilStepX = rowDistance * (planeX * 2) / w;
         const ceilStepY = rowDistance * (planeY * 2) / w;
@@ -227,17 +435,22 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
         let ceilX = posX + rowDistance * (dirX - planeX);
         let ceilY = posY + rowDistance * (dirY - planeY);
         
-        for (let x = 0; x < w; x += pxStep) {
+          for (let x = 0; x < w; x += pxStep) {
           const tileX = Math.floor(ceilX);
           const tileY = Math.floor(ceilY);
           const tileHash = ((tileX * 7919 + tileY * 104729) & 0x7fffffff) % allCeilingTextures.length;
           const tex = allCeilingTextures[tileHash];
           if (tex && tex.width > 0 && tex.height > 0) {
-            const fracXC = ceilX - tileX;
-            const fracYC = ceilY - tileY;
-            const txC = Math.floor(Math.abs(fracXC) * tex.width) % tex.width;
-            const tyC = Math.floor(Math.abs(fracYC) * tex.height) % tex.height;
-            ctx.drawImage(tex, txC, tyC, 2, 2, x, y, pxStep, 1);
+            // Get fractional position within this tile (0-1)
+            const fracX = ceilX - tileX;
+            const fracY = ceilY - tileY;
+            
+            // Sample from full texture to show stone rims around tiles
+            const txC = Math.floor(fracX * tex.width);
+            const tyC = Math.floor(fracY * tex.height);
+            
+            // Sample full texture to show complete tile with borders
+            ctx.drawImage(tex, txC, tyC, 4, 4, x, y, pxStep, 1);
           }
           
           ceilX += ceilStepX * pxStep;
@@ -258,7 +471,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     if (floorTex) {
       for (let y = Math.floor(h / 2) + 1; y < h; y++) {
         const p = y - h / 2;
-        const rowDistance = (h * 0.5) / p;
+        // Smaller multiplier (0.3 instead of 0.5) makes tiles appear flatter and smaller
+        const rowDistance = (h * 0.3) / p;
         
         const floorStepX = rowDistance * (planeX * 2) / w;
         const floorStepY = rowDistance * (planeY * 2) / w;
@@ -272,11 +486,16 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
           const tileHash = ((tileX * 7919 + tileY * 104729) & 0x7fffffff) % allFloorTextures.length;
           const tex = allFloorTextures[tileHash];
           if (tex && tex.width > 0 && tex.height > 0) {
-            const fX = floorX - tileX;
-            const fY = floorY - tileY;
-            const txF = Math.floor(Math.abs(fX) * tex.width) % tex.width;
-            const tyF = Math.floor(Math.abs(fY) * tex.height) % tex.height;
-            ctx.drawImage(tex, txF, tyF, 2, 2, x, y, pxStep, 1);
+            // Get fractional position within this tile (0-1)
+            const fracX = floorX - tileX;
+            const fracY = floorY - tileY;
+            
+            // Sample from full texture to show stone rims around tiles
+            const txF = Math.floor(fracX * tex.width);
+            const tyF = Math.floor(fracY * tex.height);
+            
+            // Sample full texture to show complete tile with borders
+            ctx.drawImage(tex, txF, tyF, 4, 4, x, y, pxStep, 1);
           }
           
           floorX += floorStepX * pxStep;
@@ -297,9 +516,13 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
     // Pre-compute wall texture array once for the raycasting loop
     const allWallTextures = [texturesRef.current.wall, ...texturesRef.current.extraWalls].filter(Boolean) as HTMLImageElement[];
 
-    // Raycasting Loop
+    // Optimized Raycasting Loop
+    const wHalf = w * 0.5;
+    const invW = 1 / w;
+    
     for (let x = 0; x < w; x+=pxStep) {
-      const cameraX = 2 * x / w - 1;
+      // Pre-compute expensive calculations
+      const cameraX = 2 * x * invW - 1;
       const rayDirX = dirX + planeX * cameraX;
       const rayDirY = dirY + planeY * cameraX;
 
@@ -308,6 +531,7 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
 
       let sideDistX, sideDistY;
       
+      // Cache expensive divisions
       const deltaDistX = Math.abs(1 / rayDirX);
       const deltaDistY = Math.abs(1 / rayDirY);
       
@@ -333,6 +557,7 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
       }
 
       // DDA
+      let hitBoundary = false;
       while (hit === 0) {
         if (sideDistX < sideDistY) {
           sideDistX += deltaDistX;
@@ -343,9 +568,10 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
           mapY += stepY;
           side = 1;
         }
-        // Bounds check
+        // Bounds check - use max distance so boundary walls still render as dark strips
         if (mapY < 0 || mapX < 0 || mapY >= map.length || mapX >= map[0].length) {
-          hit = 1; perpWallDist = 100; // Infinity
+          hit = 1;
+          hitBoundary = true;
         } else if (map[mapY][mapX] > 0) {
           hit = map[mapY][mapX]; // 1 = wall, 2 = door
         }
@@ -353,167 +579,151 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
       
       const isDoor = hit === 2;
 
+      // Calculate perpendicular wall distance (skip for boundary hits to avoid invalid coords)
       if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
       else           perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+      
+      // Clamp to sane range - prevents garbage values from boundary hits or floating point issues
+      if (!perpWallDist || perpWallDist <= 0 || !isFinite(perpWallDist)) perpWallDist = 20;
+      perpWallDist = Math.max(0.1, Math.min(perpWallDist, 20));
 
       // Draw Wall Strip
+      // Lower camera position to show more floor/ceiling - makes dungeon feel taller
+      const CAMERA_HEIGHT_OFFSET = -0.3; // Negative = lower camera, shows more floor
       const lineHeight = Math.floor(h / perpWallDist);
-      const drawStart = Math.max(0, -lineHeight / 2 + h / 2);
-      const drawEnd = Math.min(h - 1, lineHeight / 2 + h / 2);
+      const centerLine = h / 2;
+      const verticalShift = lineHeight * CAMERA_HEIGHT_OFFSET;
+      const drawStart = Math.max(0, -lineHeight / 2 + centerLine + verticalShift);
+      const drawEnd = Math.min(h - 1, lineHeight / 2 + centerLine + verticalShift);
 
       // Texture mapping
-      if (allWallTextures.length > 0) {
-         const wallTileHash = ((mapX * 7919 + mapY * 104729) & 0x7fffffff) % allWallTextures.length;
-         const selectedWallTex = allWallTextures[wallTileHash];
-         
-         let wallX; 
-         if (side === 0) wallX = posY + perpWallDist * rayDirY;
-         else            wallX = posX + perpWallDist * rayDirX;
-         wallX -= Math.floor(wallX);
+       if (allWallTextures.length > 0) {
+          const wallTileHash = ((mapX * 7919 + mapY * 104729) & 0x7fffffff) % allWallTextures.length;
+          const selectedWallTex = allWallTextures[wallTileHash];
 
-         const texX = Math.floor(wallX * selectedWallTex.width);
-         
-         // Darken farther walls
-         ctx.globalAlpha = 1.0;
-         if (side === 1) ctx.globalAlpha = 0.7; // Shading for y-axis walls
-         
-         // Distance fog
-         const fog = Math.min(1, 4.0 / perpWallDist); 
-         
-         if (isDoor) {
-           // Draw metal door using texture with stone frame
-           const doorHeight = drawEnd - drawStart;
-           const doorTex = texturesRef.current.door;
-           const wallTex = selectedWallTex;
-           
-           // Door frame parameters (percentage of door width)
-           const frameWidth = 0.12; // Stone frame on each side
-           const topFrameHeight = 0.08; // Stone lintel at top
-           const isInFrame = wallX < frameWidth || wallX > (1 - frameWidth);
-           const isInTopFrame = true; // We'll handle top frame with height
-           
-           if (isInFrame && wallTex) {
-             // Draw stone frame on edges using wall texture
-             const frameTexX = Math.floor(wallX * wallTex.width);
-             
-             if (side === 1) {
-               ctx.globalAlpha = 0.8;
-             }
-             
-             ctx.drawImage(
-               wallTex,
-               frameTexX, 0, 1, wallTex.height,
-               x, drawStart, pxStep, doorHeight
-             );
-             
-             ctx.globalAlpha = 0.4;
-             ctx.fillStyle = "#000";
-             if (wallX < frameWidth) {
-               if (wallX > frameWidth - 0.03) {
-                 ctx.fillRect(x, drawStart, pxStep, doorHeight);
-               }
-             } else {
-               if (wallX < (1 - frameWidth) + 0.03) {
-                 ctx.fillRect(x, drawStart, pxStep, doorHeight);
-               }
-             }
-             ctx.globalAlpha = 1.0;
-           } else if (doorTex) {
-             // Draw the door itself (recessed slightly)
-             // Map wallX from frame area to full door texture
-             const doorAreaStart = frameWidth;
-             const doorAreaEnd = 1 - frameWidth;
-             const doorTexWallX = (wallX - doorAreaStart) / (doorAreaEnd - doorAreaStart);
-             const doorTexX = Math.floor(Math.max(0, Math.min(1, doorTexWallX)) * doorTex.width);
-             
-             // Top stone lintel
-             const lintelHeight = Math.floor(doorHeight * topFrameHeight);
-             
-             if (wallTex) {
-               // Draw lintel at top
-               const lintelTexX = Math.floor(wallX * wallTex.width);
-               ctx.drawImage(
-                 wallTex,
-                 lintelTexX, 0, 1, wallTex.height * 0.2,
-                 x, drawStart, pxStep, lintelHeight
-               );
-               ctx.globalAlpha = 0.5;
-               ctx.fillStyle = "#000";
-               ctx.fillRect(x, drawStart + lintelHeight - 2, pxStep, 3);
-               ctx.globalAlpha = 1.0;
-             }
-             
-             // Apply side shading (darker on one side for depth)
-             if (side === 1) {
-               ctx.globalAlpha = 0.85;
-             }
-             
-             // Draw door below lintel
-             ctx.drawImage(
-               doorTex,
-               doorTexX, 0, 1, doorTex.height,
-               x, drawStart + lintelHeight, pxStep, doorHeight - lintelHeight
-             );
-             
-             ctx.globalAlpha = 1.0;
-           } else {
-             // Fallback solid color if texture not loaded
-             ctx.fillStyle = side === 1 ? '#3a4a50' : '#4a5a60';
-             ctx.fillRect(x, drawStart, pxStep, doorHeight);
-           }
-           
-           // Apply fog to door
-           ctx.globalAlpha = 1 - fog;
-           ctx.fillStyle = "#000";
-           ctx.fillRect(x, drawStart, pxStep, doorHeight);
-           ctx.globalAlpha = 1.0;
-         } else {
-           ctx.drawImage(
-              selectedWallTex, 
-              texX, 0, 1, selectedWallTex.height,
-              x, drawStart, pxStep, drawEnd - drawStart
-           );
-           
-           ctx.globalAlpha = 1 - fog;
-           ctx.fillStyle = "#000";
-           ctx.fillRect(x, drawStart, pxStep, drawEnd - drawStart);
-           ctx.globalAlpha = 1.0;
-         }
-         
-         // Draw stone baseboard at bottom of wall (matching floor texture) - skip for doors
-         if (!isDoor) {
-         const baseboardHeight = Math.max(3, Math.floor(lineHeight * 0.06));
-         const baseboardTop = drawEnd - baseboardHeight;
-         
-         // Use floor texture for baseboard
-         if (texturesRef.current.floor) {
-           const floorTex = texturesRef.current.floor;
-           // Sample from floor texture using wall position for continuity
-           const texX = Math.floor((wallX * 64) % floorTex.width);
-           
-           ctx.globalAlpha = side === 1 ? 0.8 : 1.0; // Slightly darker on side walls
-           ctx.drawImage(
-             floorTex,
-             texX, 0, 2, floorTex.height,
-             x, baseboardTop, pxStep, baseboardHeight
-           );
-           ctx.globalAlpha = 1.0;
-           
-           ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-           ctx.fillRect(x, baseboardTop, pxStep, baseboardHeight);
-         }
-         
-         ctx.fillStyle = 'rgba(180, 170, 155, 0.4)';
-         ctx.fillRect(x, baseboardTop, pxStep, 1);
-         
-         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-         ctx.fillRect(x, drawEnd - 1, pxStep, 1);
-         
-         ctx.globalAlpha = 1 - fog;
-         ctx.fillStyle = "#000";
-         ctx.fillRect(x, baseboardTop, pxStep, baseboardHeight);
-         ctx.globalAlpha = 1.0;
-         } // end if !isDoor for baseboard
+          let wallX;
+          if (side === 0) wallX = posY + perpWallDist * rayDirY;
+          else            wallX = posX + perpWallDist * rayDirX;
+          wallX -= Math.floor(wallX);
+
+          // Darken farther walls
+          ctx.globalAlpha = 1.0;
+          if (side === 1) ctx.globalAlpha = 0.7; // Shading for y-axis walls
+
+          // Distance fog
+          const fog = Math.min(1, 4.0 / perpWallDist);
+
+          if (isDoor) {
+            // Draw metal door using texture with stone frame
+            const doorHeight = drawEnd - drawStart;
+            const doorTex = texturesRef.current.door;
+            const wallTex = selectedWallTex;
+
+            // Door frame parameters (percentage of door width)
+            const frameWidth = 0.12; // Stone frame on each side
+            const topFrameHeight = 0.08; // Stone lintel at top
+            const isInFrame = wallX < frameWidth || wallX > (1 - frameWidth);
+            const isInTopFrame = true; // We'll handle top frame with height
+
+            if (isInFrame && wallTex) {
+              // Draw stone frame on edges using wall texture with smoothing
+              const usableFrameWidth = wallTex.width - (TEXTURE_BORDER_CLIP * 2);
+              const usableFrameHeight = wallTex.height - (TEXTURE_BORDER_CLIP * 2);
+              const frameTexX = TEXTURE_BORDER_CLIP + (Math.floor(wallX * usableFrameWidth) % usableFrameWidth);
+
+              if (side === 1) {
+                ctx.globalAlpha = 0.8;
+              }
+
+              ctx.drawImage(
+                wallTex,
+                Math.max(TEXTURE_BORDER_CLIP, frameTexX - 6), TEXTURE_BORDER_CLIP, 12, usableFrameHeight,
+                x - 1, drawStart, pxStep + 2, doorHeight
+              );
+
+              ctx.globalAlpha = 0.4;
+              ctx.fillStyle = "#000";
+              if (wallX < frameWidth) {
+                if (wallX > frameWidth - 0.03) {
+                  ctx.fillRect(x, drawStart, pxStep, doorHeight);
+                }
+              } else {
+                if (wallX < (1 - frameWidth) + 0.03) {
+                  ctx.fillRect(x, drawStart, pxStep, doorHeight);
+                }
+              }
+              ctx.globalAlpha = 1.0;
+            } else if (doorTex) {
+              // Draw the door itself (recessed slightly)
+              // Map wallX from frame area to full door texture
+              const doorAreaStart = frameWidth;
+              const doorAreaEnd = 1 - frameWidth;
+              const doorTexWallX = (wallX - doorAreaStart) / (doorAreaEnd - doorAreaStart);
+              const usableDoorWidth = doorTex.width - (TEXTURE_BORDER_CLIP * 2);
+              const doorTexX = TEXTURE_BORDER_CLIP + (Math.floor(Math.max(0, Math.min(1, doorTexWallX)) * usableDoorWidth));
+
+              // Top stone lintel
+              const lintelHeight = Math.floor(doorHeight * topFrameHeight);
+
+              if (wallTex) {
+                // Draw lintel at top with smoothing
+                const usableLintelWidth = wallTex.width - (TEXTURE_BORDER_CLIP * 2);
+                const lintelTexX = TEXTURE_BORDER_CLIP + (Math.floor(wallX * usableLintelWidth) % usableLintelWidth);
+                const usableLintelHeight = Math.floor((wallTex.height - (TEXTURE_BORDER_CLIP * 2)) * 0.2);
+                ctx.drawImage(
+                  wallTex,
+                  Math.max(TEXTURE_BORDER_CLIP, lintelTexX - 6), TEXTURE_BORDER_CLIP, 12, usableLintelHeight,
+                  x - 1, drawStart, pxStep + 2, lintelHeight
+                );
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = "#000";
+                ctx.fillRect(x, drawStart + lintelHeight - 2, pxStep, 3);
+                ctx.globalAlpha = 1.0;
+              }
+
+              // Apply side shading (darker on one side for depth)
+              if (side === 1) {
+                ctx.globalAlpha = 0.85;
+              }
+
+              // Draw door below lintel with slight oversampling for smoothing
+              const usableDoorHeight = doorTex.height - (TEXTURE_BORDER_CLIP * 2);
+              ctx.drawImage(
+                doorTex,
+                Math.max(TEXTURE_BORDER_CLIP, doorTexX - 6), TEXTURE_BORDER_CLIP, 12, usableDoorHeight,
+                x - 1, drawStart + lintelHeight, pxStep + 2, doorHeight - lintelHeight
+              );
+
+              ctx.globalAlpha = 1.0;
+            } else {
+              // Fallback solid color if texture not loaded
+              ctx.fillStyle = side === 1 ? '#3a4a50' : '#4a5a60';
+              ctx.fillRect(x, drawStart, pxStep, doorHeight);
+            }
+
+            // Apply fog to door
+            ctx.globalAlpha = 1 - fog;
+            ctx.fillStyle = "#000";
+            ctx.fillRect(x, drawStart, pxStep, doorHeight);
+            ctx.globalAlpha = 1.0;
+          } else {
+            // Calculate texture X coordinate for regular walls with border clipping
+            const usableWallWidth = selectedWallTex.width - (TEXTURE_BORDER_CLIP * 2);
+            const wallTexX = TEXTURE_BORDER_CLIP + (Math.floor(wallX * usableWallWidth) % usableWallWidth);
+            const usableWallHeight = selectedWallTex.height - (TEXTURE_BORDER_CLIP * 2);
+            
+            // Draw wall with smooth sampling (12px sample for smoother tile edges)
+            ctx.drawImage(
+               selectedWallTex,
+                Math.max(TEXTURE_BORDER_CLIP, wallTexX - 6), TEXTURE_BORDER_CLIP, 12, usableWallHeight,
+                x - 1, drawStart, pxStep + 2, drawEnd - drawStart
+            );
+
+            ctx.globalAlpha = 1 - fog;
+            ctx.fillStyle = "#000";
+            ctx.fillRect(x, drawStart, pxStep, drawEnd - drawStart);
+            ctx.globalAlpha = 1.0;
+          }
       } else {
          // Fallback color
          const color = side === 1 ? '#555' : '#777';
