@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { FloorRim } from './FloorRim';
+import { PillarField } from './PillarField';
 import type { RimEdge } from './FloorRim';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
@@ -429,6 +430,20 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
         );
       })}
 
+      {/* Pillars around floor1tile1-9 (4 corners per tile) */}
+      <PillarField
+        enabled={true}
+        tileCenters={[
+          { x: -1, z: -1 }, { x: 0, z: -1 }, { x: 1, z: -1 },
+          { x: -1, z: 0 }, { x: 0, z: 0 }, { x: 1, z: 0 },
+          { x: -1, z: 1 }, { x: 0, z: 1 }, { x: 1, z: 1 },
+        ]}
+        playerX={px}
+        playerY={py}
+        pillarRadius={0.07}
+        pillarHeight={1.2}
+        color={0x8a8a8a}
+      />
       {/* Ceiling tiles with hash-based texture variety */}
       {floorTiles.map((f) => {
         const texIdx = ceilingTextures.length > 0 ? tileHash(f.x + 3, f.y + 7, ceilingTextures.length) : 0;
