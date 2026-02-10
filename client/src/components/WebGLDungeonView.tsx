@@ -1,6 +1,5 @@
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { FloorRim } from './FloorRim';
-import { PillarField } from './PillarField';
 import type { RimEdge } from './FloorRim';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
@@ -405,18 +404,22 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
         // Deterministic per-tile rim variant
         const seed = (f.x * 374761393 + f.y * 668265263) >>> 0;
         const variant = seed % 4;
-        const rims = [
-          <FloorRim key={`rim-n-${f.x}-${f.y}`} edge={'N' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-s-${f.x}-${f.y}`} edge={'S' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-w-${f.x}-${f.y}`} edge={'W' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-e-${f.x}-${f.y}`} edge={'E' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-ne-${f.x}-${f.y}`} edge={'NE' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-nw-${f.x}-${f.y}`} edge={'NW' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-se-${f.x}-${f.y}`} edge={'SE' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-          <FloorRim key={`rim-sw-${f.x}-${f.y}`} edge={'SW' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />,
-        ];
+
+        // Check adjacent tiles to determine which rims to draw (only on borders with walls/unwalkable)
+        const isOpen = (tx: number, ty: number) => {
+          if (tx < 0 || tx >= map[0].length || ty < 0 || ty >= map.length) return false;
+          const t = map[ty][tx];
+          return t !== TILE_WALL && t !== TILE_DOOR;
+        };
+
+        const rims = [];
+        if (!isOpen(f.x, f.y - 1)) rims.push(<FloorRim key={`rim-n-${f.x}-${f.y}`} edge={'N' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
+        if (!isOpen(f.x, f.y + 1)) rims.push(<FloorRim key={`rim-s-${f.x}-${f.y}`} edge={'S' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
+        if (!isOpen(f.x - 1, f.y)) rims.push(<FloorRim key={`rim-w-${f.x}-${f.y}`} edge={'W' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
+        if (!isOpen(f.x + 1, f.y)) rims.push(<FloorRim key={`rim-e-${f.x}-${f.y}`} edge={'E' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
+
         return (
-          <>
+          <group key={`fgroup-${f.x}-${f.y}`}>
             <FloorTile
               key={`f-${f.x}-${f.y}`}
               x={f.x}
@@ -426,24 +429,10 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
               texture={tex}
             />
             {rims}
-          </>
+          </group>
         );
       })}
 
-      {/* Pillars around floor1tile1-9 (4 corners per tile) */}
-      <PillarField
-        enabled={true}
-        tileCenters={[
-          { x: -1, z: -1 }, { x: 0, z: -1 }, { x: 1, z: -1 },
-          { x: -1, z: 0 }, { x: 0, z: 0 }, { x: 1, z: 0 },
-          { x: -1, z: 1 }, { x: 0, z: 1 }, { x: 1, z: 1 },
-        ]}
-        playerX={px}
-        playerY={py}
-        pillarRadius={0.07}
-        pillarHeight={1.2}
-        color={0x8a8a8a}
-      />
       {/* Ceiling tiles with hash-based texture variety */}
       {floorTiles.map((f) => {
         const texIdx = ceilingTextures.length > 0 ? tileHash(f.x + 3, f.y + 7, ceilingTextures.length) : 0;
@@ -552,6 +541,10 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
       >
         <DungeonScene gameData={gameData} textures={textures} visualX={visualX} visualY={visualY} />
       </Canvas>
+      {/* Top-center coords overlay for 3D view */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/50 text-primary font-pixel text-xs px-2 py-1 rounded">
+        X:{gameData.x} Y:{gameData.y} L:{gameData.level}
+      </div>
     </div>
   );
 }
