@@ -742,8 +742,8 @@ export function DungeonView({ gameData, className, renderWidth = 800, renderHeig
         height={renderHeight} 
         className="w-full h-full rounded-lg border-4 border-muted shadow-inner bg-black"
       />
-      {/* Compass / Coords Overlay */}
-      <div className="absolute top-4 right-4 text-primary font-pixel text-xs bg-black/50 p-2 rounded">
+      {/* Compass / Coords Overlay (centered at top) */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-primary font-pixel text-xs bg-black/50 p-2 rounded">
         X:{gameData.x} Y:{gameData.y} L:{gameData.level}
       </div>
     </div>
