@@ -15,6 +15,7 @@ interface DungeonViewProps {
 
 // Cache buster for texture reloads during development
 const TEXTURE_VERSION = 25;
+const textureVersionQuery = `?v=${TEXTURE_VERSION}`;
 
 // Border offset to clip white edges from textures (pixels)
 const TEXTURE_BORDER_CLIP = 32;
@@ -26,39 +27,43 @@ function getTexturesForLevel(level: number): { wall: string; floor: string; ceil
   
   if (lvl === 1) {
     return {
-      wall: `/assets/textures/floor1tile1.PNG${v}`,
-      floor: `/assets/textures/floor1ground1.PNG${v}`,
-      ceiling: `/assets/textures/ceiling1floor1.PNG${v}`,
+      wall: `/assets/textures/floor1tile1.PNG${textureVersionQuery}`,
+      floor: `/assets/textures/floor1ground1.PNG${textureVersionQuery}`,
+      ceiling: `/assets/textures/ceiling1floor1.PNG${textureVersionQuery}`,
       extraWalls: [
-        `/assets/textures/floor1tile2.PNG${v}`,
-        `/assets/textures/floor1tile3.PNG${v}`,
-        `/assets/textures/floor1tile4.PNG${v}`,
-        `/assets/textures/floor1tile5.PNG${v}`,
-        `/assets/textures/floor1tile6.PNG${v}`,
-        `/assets/textures/floor1tile7.PNG${v}`,
-        `/assets/textures/floor1tile8.PNG${v}`,
-        `/assets/textures/floor1tile9.PNG${v}`,
+        `/assets/textures/floor1tile2.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile3.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile4.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile5.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile6.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile7.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile8.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile9.PNG${textureVersionQuery}`,
       ],
       extraFloors: [
-        `/assets/textures/floor1ground2.PNG${v}`,
-        `/assets/textures/floor1ground3.PNG${v}`,
-        `/assets/textures/floor1ground4.PNG${v}`,
-        `/assets/textures/floor1ground5.PNG${v}`,
-        `/assets/textures/floor1ground6.PNG${v}`,
-        `/assets/textures/floor1ground7.PNG${v}`,
+        `/assets/textures/floor1ground2.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground3.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground4.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground5.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground6.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground7.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground8.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground9.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground8.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground9.PNG${textureVersionQuery}`,
       ],
       extraCeilings: [
-        `/assets/textures/ceiling1floor2.PNG${v}`,
-        `/assets/textures/ceiling1floor3.PNG${v}`,
-        `/assets/textures/ceiling1floor4.PNG${v}`,
+        `/assets/textures/ceiling1floor2.PNG${textureVersionQuery}`,
+        `/assets/textures/ceiling1floor3.PNG${textureVersionQuery}`,
+        `/assets/textures/ceiling1floor4.PNG${textureVersionQuery}`,
       ],
     };
   }
   
   return {
-    wall: `/assets/textures/wall_${lvl}.png`,
-    floor: `/assets/textures/floor_${lvl}.png`,
-    ceiling: '/assets/textures/ceiling_stone_dungeon.png'
+    wall: `/assets/textures/wall_${lvl}.png${textureVersionQuery}`,
+    floor: `/assets/textures/floor_${lvl}.png${textureVersionQuery}`,
+    ceiling: `/assets/textures/ceiling_stone_dungeon.png${textureVersionQuery}`
   };
 }
 

@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { FloorRim } from './FloorRim';
+import { PillarField } from './PillarField';
 import type { RimEdge } from './FloorRim';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
@@ -25,6 +26,7 @@ import { GameData, TILE_WALL, TILE_DOOR, TILE_FLOOR, TILE_LADDER_DOWN, TILE_LADD
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TEXTURE_VERSION = 25;
+const textureVersionQuery = `?v=${TEXTURE_VERSION}`;
 const VIEW_DISTANCE = 16;
 
 // Hash function matching old DungeonView for texture variety per tile
@@ -45,43 +47,42 @@ interface LevelTextures {
 
 function getTexturesForLevel(level: number): LevelTextures {
   const lvl = Math.max(1, Math.min(10, level));
-  const v = `?v=${TEXTURE_VERSION}`;
 
   if (lvl === 1) {
     return {
-      wall: `/assets/textures/floor1tile1.PNG${v}`,
-      floor: `/assets/textures/floor1ground1.PNG${v}`,
-      ceiling: `/assets/textures/ceiling1floor1.PNG${v}`,
+      wall: `/assets/textures/floor1tile1.PNG${textureVersionQuery}`,
+      floor: `/assets/textures/floor1ground1.PNG${textureVersionQuery}`,
+      ceiling: `/assets/textures/ceiling1floor1.PNG${textureVersionQuery}`,
       extraWalls: [
-        `/assets/textures/floor1tile2.PNG${v}`,
-        `/assets/textures/floor1tile3.PNG${v}`,
-        `/assets/textures/floor1tile4.PNG${v}`,
-        `/assets/textures/floor1tile5.PNG${v}`,
-        `/assets/textures/floor1tile6.PNG${v}`,
-        `/assets/textures/floor1tile7.PNG${v}`,
-        `/assets/textures/floor1tile8.PNG${v}`,
-        `/assets/textures/floor1tile9.PNG${v}`,
+        `/assets/textures/floor1tile2.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile3.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile4.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile5.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile6.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile7.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile8.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1tile9.PNG${textureVersionQuery}`,
       ],
       extraFloors: [
-        `/assets/textures/floor1ground2.PNG${v}`,
-        `/assets/textures/floor1ground3.PNG${v}`,
-        `/assets/textures/floor1ground4.PNG${v}`,
-        `/assets/textures/floor1ground5.PNG${v}`,
-        `/assets/textures/floor1ground6.PNG${v}`,
-        `/assets/textures/floor1ground7.PNG${v}`,
+        `/assets/textures/floor1ground2.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground3.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground4.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground5.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground6.PNG${textureVersionQuery}`,
+        `/assets/textures/floor1ground7.PNG${textureVersionQuery}`,
       ],
       extraCeilings: [
-        `/assets/textures/ceiling1floor2.PNG${v}`,
-        `/assets/textures/ceiling1floor3.PNG${v}`,
-        `/assets/textures/ceiling1floor4.PNG${v}`,
+        `/assets/textures/ceiling1floor2.PNG${textureVersionQuery}`,
+        `/assets/textures/ceiling1floor3.PNG${textureVersionQuery}`,
+        `/assets/textures/ceiling1floor4.PNG${textureVersionQuery}`,
       ],
     };
   }
 
   return {
-    wall: `/assets/textures/wall_${lvl}.png${v}`,
-    floor: `/assets/textures/floor_${lvl}.png${v}`,
-    ceiling: `/assets/textures/ceiling_stone_dungeon.png${v}`,
+    wall: `/assets/textures/wall_${lvl}.png${textureVersionQuery}`,
+    floor: `/assets/textures/floor_${lvl}.png${textureVersionQuery}`,
+    ceiling: `/assets/textures/ceiling_stone_dungeon.png${textureVersionQuery}`,
   };
 }
 
@@ -117,6 +118,8 @@ function loadTex(loader: TextureLoader, src: string): Promise<Texture | null> {
 interface LoadedTextures {
   walls: Texture[];   // primary + extras
   floors: Texture[];  // primary + extras
+  normals?: Texture[]; // per-floor normal maps (Phase 4)
+  roughness?: Texture[]; // per-floor roughness maps (Phase 4)
   ceilings: Texture[]; // primary + extras
   door: Texture | null;
 }
@@ -209,10 +212,12 @@ function WallBlock({ x, y, playerX, playerY, texture, isDoor, doorTexture }: {
 
 // ─── Floor tile (individual quad per tile for texture variety) ────────────────
 
-function FloorTile({ x, y, playerX, playerY, texture }: {
+function FloorTile({ x, y, playerX, playerY, texture, normalMap, roughnessMap }: {
   x: number; y: number;
   playerX: number; playerY: number;
   texture: Texture;
+  normalMap?: Texture;
+  roughnessMap?: Texture;
 }) {
   const meshRef = useRef<any>(null);
 
@@ -223,6 +228,20 @@ function FloorTile({ x, y, playerX, playerY, texture }: {
     }
   });
 
+  // If normal/roughness maps exist, render with PBR material
+  if (normalMap || roughnessMap) {
+    return (
+      <mesh
+        ref={meshRef}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[x - playerX + 0.5, 0.0, y - playerY + 0.5]}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshStandardMaterial map={texture} normalMap={normalMap} roughnessMap={roughnessMap} metalness={0} roughness={0.6} />
+      </mesh>
+    );
+  }
+  // Fallback to basic material
   return (
     <mesh
       ref={meshRef}
@@ -366,8 +385,8 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
       {/* Walls (and doors) with hash-based texture variety */}
       {wallTiles.map((w) => {
         const isDoor = w.tile === TILE_DOOR;
-        const texIdx = wallTextures.length > 0 ? tileHash(w.x, w.y, wallTextures.length) : 0;
-        const tex = wallTextures[texIdx] || wallTextures[0];
+        const wallTexIndex = wallTextures.length > 0 ? tileHash(w.x, w.y, wallTextures.length) : 0;
+        const tex = wallTextures[wallTexIndex] || wallTextures[0];
         if (!tex) return null;
         return (
           <WallBlock
@@ -398,8 +417,8 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
 
       {/* Floor tiles with rim variations around every tile edge (square around tile) */}
       {floorTiles.map((f) => {
-        const texIdx = floorTextures.length > 0 ? tileHash(f.x, f.y, floorTextures.length) : 0;
-        const tex = floorTextures[texIdx] || floorTextures[0];
+        const tileIndex2 = floorTextures.length > 0 ? tileHash(f.x, f.y, floorTextures.length) : 0;
+        const tex = floorTextures[tileIndex2] || floorTextures[0];
         if (!tex) return null;
         // Deterministic per-tile rim variant
         const seed = (f.x * 374761393 + f.y * 668265263) >>> 0;
@@ -418,6 +437,11 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
         if (!isOpen(f.x - 1, f.y)) rims.push(<FloorRim key={`rim-w-${f.x}-${f.y}`} edge={'W' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
         if (!isOpen(f.x + 1, f.y)) rims.push(<FloorRim key={`rim-e-${f.x}-${f.y}`} edge={'E' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
 
+        // Compute per-tile maps for potential PBR textures
+        const tileIndex = floorTextures.length > 0 ? tileHash(f.x, f.y, floorTextures.length) : 0;
+        const perTex = floorTextures[tileIndex] || floorTextures[0];
+        const normalTex = textures?.normals?.length ? textures.normals[tileIndex % textures.normals.length] : undefined;
+        const roughTex = textures?.roughness?.length ? textures.roughness[tileIndex % textures.roughness.length] : undefined;
         return (
           <group key={`fgroup-${f.x}-${f.y}`}>
             <FloorTile
@@ -426,7 +450,9 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
               y={f.y}
               playerX={px}
               playerY={py}
-              texture={tex}
+              texture={perTex}
+              normalMap={normalTex}
+              roughnessMap={roughTex}
             />
             {rims}
           </group>
@@ -435,8 +461,8 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
 
       {/* Ceiling tiles with hash-based texture variety */}
       {floorTiles.map((f) => {
-        const texIdx = ceilingTextures.length > 0 ? tileHash(f.x + 3, f.y + 7, ceilingTextures.length) : 0;
-        const tex = ceilingTextures[texIdx] || ceilingTextures[0];
+        const ceilTexIndex = ceilingTextures.length > 0 ? tileHash(f.x + 3, f.y + 7, ceilingTextures.length) : 0;
+        const tex = ceilingTextures[ceilTexIndex] || ceilingTextures[0];
         if (!tex) return null;
         return (
           <CeilingTile
@@ -480,15 +506,43 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
     const ceilingPaths = [paths.ceiling, ...(paths.extraCeilings || [])];
     const doorPath = `/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`;
 
+    // Phase 3/4: load normals and roughness maps for Phase 4 improvements
+    const textureVersionQuery = `?v=${TEXTURE_VERSION}`;
+    const normalPaths = [
+      `/assets/textures/floor1ground1_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground2_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground3_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground4_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground5_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground6_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground7_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground8_normal.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground9_normal.png${textureVersionQuery}`,
+    ];
+    const roughPaths = [
+      `/assets/textures/floor1ground1_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground2_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground3_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground4_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground5_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground6_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground7_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground8_rough.png${textureVersionQuery}`,
+      `/assets/textures/floor1ground9_rough.png${textureVersionQuery}`,
+    ];
     Promise.all([
       Promise.all(wallPaths.map((p) => loadTex(loader, p))),
       Promise.all(floorPaths.map((p) => loadTex(loader, p))),
       Promise.all(ceilingPaths.map((p) => loadTex(loader, p))),
+      Promise.all(normalPaths.map((p) => loadTex(loader, p))),
+      Promise.all(roughPaths.map((p) => loadTex(loader, p))),
       loadTex(loader, doorPath),
-    ]).then(([walls, floors, ceilings, door]) => {
+    ]).then(([walls, floors, ceilings, normals, roughness, door]) => {
       const validWalls = walls.filter((t): t is Texture => t !== null);
       const validFloors = floors.filter((t): t is Texture => t !== null);
       const validCeilings = ceilings.filter((t): t is Texture => t !== null);
+      const validNormals = normals.filter((t): t is Texture => t !== null);
+      const validRough = roughness.filter((t): t is Texture => t !== null);
 
       console.log(`[WebGL] Textures loaded for level ${gameData.level}:`, {
         walls: validWalls.length,
@@ -500,6 +554,8 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
       setTextures({
         walls: validWalls,
         floors: validFloors,
+        normals: normals.filter((t): t is Texture => t !== null),
+        roughness: roughness.filter((t): t is Texture => t !== null),
         ceilings: validCeilings,
         door,
       });
