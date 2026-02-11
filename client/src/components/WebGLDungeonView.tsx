@@ -1,7 +1,5 @@
 import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { FloorRim } from './FloorRim';
-import { WallPillar } from './WallPillar';
-import { PillarField } from './PillarField';
 import type { RimEdge } from './FloorRim';
 import { crackTexture } from '../utils/procedural-floor'
 import { loadTransparentWallTexture } from '../utils/transparent-wall'
@@ -69,7 +67,7 @@ function getTexturesForLevel(level: number): LevelTextures {
     return {
       wall: `/assets/textures/wall1.jpg${textureVersionQuery}`,
       floor: `/assets/textures/floor1ground1.PNG${textureVersionQuery}`,
-      ceiling: `/assets/textures/ceiling1floor1.PNG${textureVersionQuery}`,
+      ceiling: `/assets/textures/ceilingbrushed (1).jpg${textureVersionQuery}`,
       extraWalls: [
         `/assets/textures/wall1.jpg${textureVersionQuery}`,
         `/assets/textures/wall2.jpg${textureVersionQuery}`,
@@ -98,18 +96,13 @@ function getTexturesForLevel(level: number): LevelTextures {
         `/assets/textures/floor1ground14_matched.PNG${textureVersionQuery}`,
       ],
       extraCeilings: [
-        `/assets/textures/ceiling1floor2.PNG${textureVersionQuery}`,
-        `/assets/textures/ceiling1floor3.PNG${textureVersionQuery}`,
-        `/assets/textures/ceiling1floor4.PNG${textureVersionQuery}`,
-        `/assets/textures/ceiling_user1.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user2.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user3.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user4.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user5.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user6.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user7.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user8.png${textureVersionQuery}`,
-        `/assets/textures/ceiling_user9.png${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (2).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (3).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (4).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (5).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (6).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (7).jpg${textureVersionQuery}`,
+        `/assets/textures/ceilingbrushed (8).jpg${textureVersionQuery}`,
       ],
     };
   }
@@ -159,6 +152,7 @@ interface LoadedTextures {
   customWalls?: Texture[]; // additional wall textures loaded from wall1-wall5
   ceilings: Texture[]; // primary + extras
   door: Texture | null;
+  beamTextures?: Texture[];
 }
 
 interface WebGLDungeonViewProps {
@@ -240,8 +234,8 @@ function WallBlock({ x, y, playerX, playerY, texture, isDoor, doorTexture }: {
 
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.position.x = x + 0.5 - playerX;
-      meshRef.current.position.z = y + 0.5 - playerY;
+      meshRef.current.position.x = (x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
+      meshRef.current.position.z = (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
     }
   });
 
@@ -250,8 +244,8 @@ function WallBlock({ x, y, playerX, playerY, texture, isDoor, doorTexture }: {
     return (
       <group>
         {/* Door panel - slightly thinner */}
-        <mesh ref={meshRef} position={[x + 0.5 - playerX, 0.5, y + 0.5 - playerY]}>
-          <boxGeometry ref={geometryRef} args={[1, 1, 1]} />
+        <mesh ref={meshRef} position={[(x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2, 0.5, (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2]}>
+          <boxGeometry ref={geometryRef} args={[TILE_WORLD_SIZE, 1, TILE_WORLD_SIZE]} />
           <meshBasicMaterial map={doorTexture} color={0xcccccc} />
         </mesh>
       </group>
@@ -259,8 +253,8 @@ function WallBlock({ x, y, playerX, playerY, texture, isDoor, doorTexture }: {
   }
 
   return (
-    <mesh ref={meshRef} position={[x + 0.5 - playerX, 0.5, y + 0.5 - playerY]}>
-      <boxGeometry ref={geometryRef} args={[1, 1, 1]} />
+    <mesh ref={meshRef} position={[(x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2, 0.5, (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2]}>
+      <boxGeometry ref={geometryRef} args={[TILE_WORLD_SIZE, 1, TILE_WORLD_SIZE]} />
       <meshBasicMaterial map={usedTexture} color={0xdddddd} />
     </mesh>
   );
@@ -335,6 +329,81 @@ function FloorTile({ x, y, playerX, playerY, texture, normalMap, roughnessMap, t
 
 // ─── Ceiling tile (individual quad per tile for texture variety) ──────────────
 
+// Helper function to add subtle cracks and weathering to ceiling textures
+function addCracksToTexture(texture: Texture, seed: number): Texture {
+  const canvas = document.createElement('canvas');
+  const size = 512;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  
+  // Deterministic random function
+  let s = seed;
+  const rand = () => {
+    s = ((s * 1103515245 + 12345) >>> 0);
+    return (s % 1000000) / 1000000;
+  };
+  
+  // Draw original texture
+  if (texture.image) {
+    ctx.drawImage(texture.image as CanvasImageSource, 0, 0, size, size);
+  }
+  
+  // Only add cracks to ~15% of tiles
+  if (rand() > 0.85) {
+    const numCracks = 1 + Math.floor(rand() * 3); // 1-3 cracks
+    
+    for (let i = 0; i < numCracks; i++) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(30, 30, 30, ${0.3 + rand() * 0.3})`;
+      ctx.lineWidth = 0.5 + rand() * 1.5;
+      ctx.lineCap = 'round';
+      
+      let cx = rand() * size;
+      let cy = rand() * size;
+      ctx.moveTo(cx, cy);
+      
+      const segments = 3 + Math.floor(rand() * 5);
+      for (let j = 0; j < segments; j++) {
+        cx += (rand() - 0.5) * 60;
+        cy += (rand() - 0.5) * 60;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+      
+      // Add small branches
+      if (rand() > 0.5) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(40, 40, 40, ${0.2 + rand() * 0.2})`;
+        ctx.lineWidth = 0.3;
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + (rand() - 0.5) * 30, cy + (rand() - 0.5) * 30);
+        ctx.stroke();
+      }
+    }
+    
+    // Add subtle stains (10% chance)
+    if (rand() > 0.9) {
+      const stainX = rand() * size;
+      const stainY = rand() * size;
+      const stainRadius = 10 + rand() * 40;
+      
+      const gradient = ctx.createRadialGradient(stainX, stainY, 0, stainX, stainY, stainRadius);
+      gradient.addColorStop(0, `rgba(60, 50, 40, ${0.1 + rand() * 0.15})`);
+      gradient.addColorStop(1, 'rgba(60, 50, 40, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(stainX, stainY, stainRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  const newTexture = new CanvasTexture(canvas);
+  configureTexture(newTexture);
+  return newTexture;
+}
+
 function CeilingTile({ x, y, playerX, playerY, texture }: {
   x: number; y: number;
   playerX: number; playerY: number;
@@ -342,11 +411,15 @@ function CeilingTile({ x, y, playerX, playerY, texture }: {
 }) {
   const meshRef = useRef<any>(null);
   const geometryRef = useRef<PlaneGeometry | null>(null);
+  
+  // Generate cracked texture based on position
+  const seed = (x * 374761393 + y * 668265263) >>> 0;
+  const crackedTexture = useMemo(() => addCracksToTexture(texture, seed), [texture, seed]);
 
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.position.x = x - playerX + 0.5;
-      meshRef.current.position.z = y - playerY + 0.5;
+      meshRef.current.position.x = (x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
+      meshRef.current.position.z = (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
     }
   });
 
@@ -375,11 +448,76 @@ function CeilingTile({ x, y, playerX, playerY, texture }: {
     <mesh
       ref={meshRef}
       rotation={[Math.PI / 2, 0, 0]}
-      position={[x - playerX + 0.5, 1.0, y - playerY + 0.5]}
+      position={[(x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2, 1.0, (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2]}
     >
-      <planeGeometry ref={geometryRef} args={[1, 1]} />
-      <meshBasicMaterial map={texture} color={0xffffff} />
+      <planeGeometry ref={geometryRef} args={[TILE_WORLD_SIZE, TILE_WORLD_SIZE]} />
+      <meshBasicMaterial map={crackedTexture} color={0xdddddd} />
     </mesh>
+  );
+}
+
+// ─── Ceiling beams forming squares around each tile ───────────────────────────
+
+function CeilingBeams({ x, y, playerX, playerY, beamTextures }: {
+  x: number; y: number;
+  playerX: number; playerY: number;
+  beamTextures: Texture[];
+}) {
+  const groupRef = useRef<any>(null);
+  const beamThickness = 0.005; // 0.5cm thick
+  const beamDepth = 0.001; // 0.1cm hanging down
+  const halfTile = TILE_WORLD_SIZE / 2;
+  
+  // Select beam texture based on tile position for deterministic variety
+  const beamTexIndex = beamTextures.length > 0 ? tileHash(x, y, beamTextures.length) : 0;
+  const beamTexture = beamTextures[beamTexIndex] || beamTextures[0];
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.x = (x - playerX) * TILE_WORLD_SIZE + halfTile;
+      groupRef.current.position.z = (y - playerY) * TILE_WORLD_SIZE + halfTile;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[(x - playerX) * TILE_WORLD_SIZE + halfTile, 1.0 - beamDepth / 2, (y - playerY) * TILE_WORLD_SIZE + halfTile]}>
+      {/* North beam */}
+      <mesh position={[0, 0, -halfTile + beamThickness / 2]}>
+        <boxGeometry args={[TILE_WORLD_SIZE, beamDepth, beamThickness]} />
+        {beamTexture ? (
+          <meshBasicMaterial map={beamTexture} />
+        ) : (
+          <meshBasicMaterial color={0x777777} />
+        )}
+      </mesh>
+      {/* South beam */}
+      <mesh position={[0, 0, halfTile - beamThickness / 2]}>
+        <boxGeometry args={[TILE_WORLD_SIZE, beamDepth, beamThickness]} />
+        {beamTexture ? (
+          <meshBasicMaterial map={beamTexture} />
+        ) : (
+          <meshBasicMaterial color={0x777777} />
+        )}
+      </mesh>
+      {/* West beam */}
+      <mesh position={[-halfTile + beamThickness / 2, 0, 0]}>
+        <boxGeometry args={[beamThickness, beamDepth, TILE_WORLD_SIZE - beamThickness * 2]} />
+        {beamTexture ? (
+          <meshBasicMaterial map={beamTexture} />
+        ) : (
+          <meshBasicMaterial color={0x777777} />
+        )}
+      </mesh>
+      {/* East beam */}
+      <mesh position={[halfTile - beamThickness / 2, 0, 0]}>
+        <boxGeometry args={[beamThickness, beamDepth, TILE_WORLD_SIZE - beamThickness * 2]} />
+        {beamTexture ? (
+          <meshBasicMaterial map={beamTexture} />
+        ) : (
+          <meshBasicMaterial color={0x777777} />
+        )}
+      </mesh>
+    </group>
   );
 }
 
@@ -393,7 +531,7 @@ function Baseboard({ x, y, playerX, playerY, texture, map }: {
 }) {
   const groupRef = useRef<any>(null);
   const boardHeight = 0.12;
-  const boardOffset = 0.501; // Slightly in front of wall face
+  const boardOffset = TILE_WORLD_SIZE / 2 + 0.001; // Slightly in front of wall face
 
   // Check which adjacent tiles are open (floor/ladder) to place baseboard faces
   const maxY = map.length;
@@ -416,20 +554,20 @@ function Baseboard({ x, y, playerX, playerY, texture, map }: {
 
   useFrame(() => {
     if (groupRef.current) {
-      groupRef.current.position.x = x + 0.5 - playerX;
-      groupRef.current.position.z = y + 0.5 - playerY;
+      groupRef.current.position.x = (x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
+      groupRef.current.position.z = (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2;
     }
   });
 
   return (
-    <group ref={groupRef} position={[x + 0.5 - playerX, 0, y + 0.5 - playerY]}>
+    <group ref={groupRef} position={[(x - playerX) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2, 0, (y - playerY) * TILE_WORLD_SIZE + TILE_WORLD_SIZE / 2]}>
       {faces.map((f, i) => (
         <mesh
           key={i}
           position={[f.px, boardHeight / 2, f.pz]}
           rotation={[0, f.ry, 0]}
         >
-          <planeGeometry args={[1, boardHeight]} />
+          <planeGeometry args={[TILE_WORLD_SIZE, boardHeight]} />
           <meshBasicMaterial map={texture} color={0x888888} />
         </mesh>
       ))}
@@ -472,28 +610,10 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
   const floorTextures = textures.floors;
   const ceilingTextures = textures.ceilings;
   const doorTex = textures.door;
+  const beamTexes = textures.beamTextures || [];
 
   // Fallback: if no floor textures for baseboard, use first wall tex
   const baseboardTex = floorTextures[0] || wallTextures[0] || null;
-  // Pillars: detect 90-degree wall intersections and place pillars there
-  const pillarIntersections = useMemo(() => {
-    if (!wallTiles || wallTiles.length === 0) return [] as Array<{x:number,y:number}>
-    const wallSet = new Set<string>(wallTiles.map(t => t.x + ',' + t.y))
-    const corners: Array<{x:number, y:number}> = []
-    const seen = new Set<string>()
-    for (const w of wallTiles) {
-      const x = w.x, y = w.y
-      const NE = wallSet.has((x+1) + ',' + y) && wallSet.has(x + ',' + (y-1))
-      if (NE) { const cx = x + 0.5, cy = y - 0.5; const key = cx + ',' + cy; if (!seen.has(key)) { seen.add(key); corners.push({x: cx, y: cy}) } }
-      const NW = wallSet.has((x-1) + ',' + y) && wallSet.has(x + ',' + (y-1))
-      if (NW) { const cx = x - 0.5, cy = y - 0.5; const key = cx + ',' + cy; if (!seen.has(key)) { seen.add(key); corners.push({x: cx, y: cy}) } }
-      const SE = wallSet.has((x+1) + ',' + y) && wallSet.has(x + ',' + (y+1))
-      if (SE) { const cx = x + 0.5, cy = y + 0.5; const key = cx + ',' + cy; if (!seen.has(key)) { seen.add(key); corners.push({x: cx, y: cy}) } }
-      const SW = wallSet.has((x-1) + ',' + y) && wallSet.has(x + ',' + (y+1))
-      if (SW) { const cx = x - 0.5, cy = y + 0.5; const key = cx + ',' + cy; if (!seen.has(key)) { seen.add(key); corners.push({x: cx, y: cy}) } }
-    }
-    return corners
-  }, [wallTiles])
 
   return (
     <>
@@ -525,10 +645,6 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
           />
         );
       })}
-      {/* Pillars between walls at 90-degree corners */}
-      {pillarIntersections.map((p) => (
-        <WallPillar key={`pillar-${p.x}-${p.y}`} x={p.x} y={p.y} playerX={px} playerY={py} />
-      ))}
 
       {/* Baseboards at bottom of walls */}
       {baseboardTex && wallTiles.map((w) => (
@@ -560,9 +676,9 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
         };
 
         const rims = [];
-        if (!isOpen(f.x, f.y - 1)) rims.push(<FloorRim key={`rim-n-${f.x}-${f.y}`} edge={'N' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
-        if (!isOpen(f.x, f.y + 1)) rims.push(<FloorRim key={`rim-s-${f.x}-${f.y}`} edge={'S' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
-        if (!isOpen(f.x - 1, f.y)) rims.push(<FloorRim key={`rim-w-${f.x}-${f.y}`} edge={'W' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
+        if (!isOpen(f.x, f.y - 1)) rims.push(<FloorRim key={`rim-n-${f.x}-${f.y}`} edge={'N' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} tileSize={TILE_WORLD_SIZE} />);
+        if (!isOpen(f.x, f.y + 1)) rims.push(<FloorRim key={`rim-s-${f.x}-${f.y}`} edge={'S' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} tileSize={TILE_WORLD_SIZE} />);
+        if (!isOpen(f.x - 1, f.y)) rims.push(<FloorRim key={`rim-w-${f.x}-${f.y}`} edge={'W' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} tileSize={TILE_WORLD_SIZE} />);
         if (!isOpen(f.x + 1, f.y)) rims.push(<FloorRim key={`rim-e-${f.x}-${f.y}`} edge={'E' as RimEdge} variant={variant} x={f.x} y={f.y} px={px} py={py} texture={rimTexture} />);
 
         // Compute per-tile maps for potential PBR textures (with parity for extra floors)
@@ -599,14 +715,24 @@ function DungeonScene({ gameData, textures, visualX, visualY }: { gameData: Game
         const tex = ceilingTextures[ceilTexIndex] || ceilingTextures[0];
         if (!tex) return null;
         return (
-          <CeilingTile
-            key={`c-${f.x}-${f.y}`}
-            x={f.x}
-            y={f.y}
-            playerX={px}
-            playerY={py}
-            texture={tex}
-          />
+          <group key={`cgroup-${f.x}-${f.y}`}>
+            <CeilingTile
+              key={`c-${f.x}-${f.y}`}
+              x={f.x}
+              y={f.y}
+              playerX={px}
+              playerY={py}
+              texture={tex}
+            />
+            <CeilingBeams
+              key={`cb-${f.x}-${f.y}`}
+              x={f.x}
+              y={f.y}
+              playerX={px}
+              playerY={py}
+              beamTextures={beamTexes}
+            />
+          </group>
         );
       })}
     </>
@@ -639,6 +765,13 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
     const floorPaths = [paths.floor, ...(paths.extraFloors || [])];
     const ceilingPaths = [paths.ceiling, ...(paths.extraCeilings || [])];
     const doorPath = `/assets/textures/door_metal.png?v=${TEXTURE_VERSION}`;
+    const beamPaths = [
+      `/assets/textures/stonebeams.jpg?v=${TEXTURE_VERSION}`,
+      `/assets/textures/stonebeams (1).jpg?v=${TEXTURE_VERSION}`,
+      `/assets/textures/stonebeams (2).jpg?v=${TEXTURE_VERSION}`,
+      `/assets/textures/stonebeams (3).jpg?v=${TEXTURE_VERSION}`,
+      `/assets/textures/stonebeams (4).jpg?v=${TEXTURE_VERSION}`,
+    ];
 
       // Phase 3/4: load normals and roughness maps for Phase 4 improvements
     const textureVersionQuery = `?v=${TEXTURE_VERSION}`;
@@ -694,18 +827,21 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
       Promise.all(roughPaths.map((p) => loadTex(loader, p))),
       Promise.all(stylizedPaths.map((p) => loadTex(loader, p))),
       loadTex(loader, doorPath),
-    ]).then(([walls, floors, ceilings, normals, roughness, stylizedTexes, door]) => {
+      Promise.all(beamPaths.map((p) => loadTex(loader, p))),
+    ]).then(([walls, floors, ceilings, normals, roughness, stylizedTexes, door, beamTexes]) => {
       const validWalls = walls.filter((t): t is Texture => t !== null);
       const validFloors = floors.filter((t): t is Texture => t !== null);
       const validCeilings = ceilings.filter((t): t is Texture => t !== null);
       const validNormals = normals.filter((t): t is Texture => t !== null);
       const validRough = roughness.filter((t): t is Texture => t !== null);
+      const validBeams = beamTexes.filter((t): t is Texture => t !== null);
 
       console.log(`[WebGL] Textures loaded for level ${gameData.level}:`, {
         walls: validWalls.length,
         floors: validFloors.length,
         ceilings: validCeilings.length,
         door: !!door,
+        beams: validBeams.length,
       });
 
       setTextures({
@@ -716,6 +852,7 @@ export function WebGLDungeonView({ gameData, visualX, visualY, viewportScale = 0
         stylizedFloors: stylizedTexes.filter((t): t is Texture => t !== null),
         ceilings: validCeilings,
         door,
+        beamTextures: validBeams,
       });
       // Load additional wall textures (wall1-wall5) with transparency so they blend with ceilings/floors
       const extraWallPaths = [
