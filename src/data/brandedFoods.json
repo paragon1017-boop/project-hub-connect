@@ -1,0 +1,14 @@
+// src/data/brandedFoods.json
+// Place your JSON database here
+[
+  {
+    "id": "12345",
+    "name": "Example Brand Cereal",
+    "brand": "Example Brand",
+    "calories": 120,
+    "protein": 3,
+    "carbs": 25,
+    "fat": 1,
+    "servingSize": "1 cup (30g)"
+  }
+]

@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+@layer base {
+  :root {
+    --background: 150 20% 97%;
+    --foreground: 160 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 30% 10%;
+
+    --primary: 152 58% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 25% 92%;
+    --secondary-foreground: 160 30% 15%;
+
+    --muted: 150 15% 94%;
+    --muted-foreground: 160 10% 45%;
+
+    --accent: 38 92% 55%;
+    --accent-foreground: 38 90% 15%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 15% 88%;
+    --input: 150 15% 88%;
+    --ring: 152 58% 42%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --nutri-green: 152 58% 42%;
+    --nutri-orange: 38 92% 55%;
+    --nutri-red: 0 72% 55%;
+    --nutri-blue: 210 70% 50%;
+  }
+
+  .dark {
+    --background: 160 20% 7%;
+    --foreground: 150 15% 92%;
+
+    --card: 160 20% 10%;
+    --card-foreground: 150 15% 92%;
+
+    --popover: 160 20% 10%;
+    --popover-foreground: 150 15% 92%;
+
+    --primary: 152 58% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 160 20% 15%;
+    --secondary-foreground: 150 15% 90%;
+
+    --muted: 160 15% 15%;
+    --muted-foreground: 150 10% 55%;
+
+    --accent: 38 92% 55%;
+    --accent-foreground: 38 90% 95%;
+
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 160 15% 18%;
+    --input: 160 15% 18%;
+    --ring: 152 58% 48%;
+
+    --sidebar-background: 160 20% 8%;
+    --sidebar-foreground: 150 15% 90%;
+    --sidebar-primary: 152 58% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 15% 15%;
+    --sidebar-accent-foreground: 150 15% 90%;
+    --sidebar-border: 160 15% 18%;
+    --sidebar-ring: 152 58% 48%;
+
+    --nutri-green: 152 58% 48%;
+    --nutri-orange: 38 92% 55%;
+    --nutri-red: 0 72% 55%;
+    --nutri-blue: 210 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
