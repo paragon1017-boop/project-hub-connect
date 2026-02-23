@@ -567,18 +567,18 @@ export default function FoodSearch() {
                             vitaminB6: food.nutriments?.["vitamin-b6_100g"] ?? 0,
                             vitaminB9: food.nutriments?.["vitamin-b9_100g"] ?? 0,
                             vitaminB12: food.nutriments?.["vitamin-b12_100g"] ?? 0,
-                            biotin: food.nutriments?.biotin_100g ?? 0,
+                            biotin: (food.nutriments as any)?.biotin_100g ?? 0,
                             pantothenicAcid: food.nutriments?.["pantothenic-acid_100g"] ?? 0,
                             // Minerals
-                            calcium: food.nutriments?.calcium_100g ?? 0,
-                            iron: food.nutriments?.iron_100g ?? 0,
-                            magnesium: food.nutriments?.magnesium_100g ?? 0,
-                            phosphorus: food.nutriments?.phosphorus_100g ?? 0,
-                            potassium: food.nutriments?.potassium_100g ?? 0,
-                            zinc: food.nutriments?.zinc_100g ?? 0,
-                            copper: food.nutriments?.copper_100g ?? 0,
-                            selenium: food.nutriments?.selenium_100g ?? 0,
-                            manganese: food.nutriments?.manganese_100g ?? 0,
+                            calcium: (food.nutriments as any)?.calcium_100g ?? 0,
+                            iron: (food.nutriments as any)?.iron_100g ?? 0,
+                            magnesium: (food.nutriments as any)?.magnesium_100g ?? 0,
+                            phosphorus: (food.nutriments as any)?.phosphorus_100g ?? 0,
+                            potassium: (food.nutriments as any)?.potassium_100g ?? 0,
+                            zinc: (food.nutriments as any)?.zinc_100g ?? 0,
+                            copper: (food.nutriments as any)?.copper_100g ?? 0,
+                            selenium: (food.nutriments as any)?.selenium_100g ?? 0,
+                            manganese: (food.nutriments as any)?.manganese_100g ?? 0,
                           });
                           toast({ title: "Added", description: "Food added to favorites." });
                         }
